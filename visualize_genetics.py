@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 import networkx as nx
 import subprocess
 import re
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+from http.server import HTTPServer, SimpleHTTPRequestHandler, ThreadingHTTPServer
 import threading
 import webbrowser
 import urllib.parse
@@ -29,31 +29,48 @@ def load_strain_data(folder_path):
     for root, dirs, files in os.walk(folder_path):
         for dir in dirs:
             if not dir.startswith('.'):  # Skip hidden directories
-                # Find the summary txt file
-                strain_name = dir.split('-')[0].strip()
-                summary_file = f"{strain_name}_summary.txt"
-                file_path = os.path.join(folder_path, dir, summary_file)
+                # Clean strain name by removing extra spaces
+                strain_name = ' '.join(dir.split('-')[0].strip().split())
                 
-                if os.path.exists(file_path):
-                    with open(file_path, 'r') as f:
-                        content = f.read()
-                        
-                        # Extract RSP number
-                        rsp_match = re.search(r'\((RSP\d+)\)', content)
-                        ref_number = rsp_match.group(1) if rsp_match else None
-                        
-                        # Extract relationships
-                        relationships = parse_summary_relationships(content)
-                        
-                        strains_data[strain_name] = {
-                            'all_samples': relationships['all_samples'],
-                            'base_tree': relationships['base_tree'],
-                            'ref_number': ref_number
-                        }
-                        
-                        # Add all related strains to the set
-                        for strain_info in relationships['all_strains']:
-                            all_relationships.add(strain_info)
+                # Check if this is a successfully scraped strain
+                metadata_file = os.path.join(root, dir, f"{strain_name.replace(' ', '_')}.metadata.csv")
+                chemicals_file = os.path.join(root, dir, f"{strain_name.replace(' ', '_')}.chemicals.csv")
+                variants_file = os.path.join(root, dir, f"{strain_name.replace(' ', '_')}.variants.csv")
+                
+                # Extract RSP number from directory name
+                rsp_match = re.search(r'-rsp(\d+)', dir.lower())
+                rsp = f"RSP{rsp_match.group(1)}" if rsp_match else ''
+                
+                # Mark strain as complete if all files exist and have data
+                is_complete = all([
+                    os.path.exists(f) and os.path.getsize(f) > 0 
+                    for f in [metadata_file, chemicals_file, variants_file]
+                ])
+                
+                strains_data[strain_name] = {
+                    'complete': is_complete,
+                    'rsp': rsp,
+                    'dir_name': dir
+                }
+                
+                # Add relationships if they exist
+                if os.path.exists(variants_file):
+                    with open(variants_file, 'r') as f:
+                        reader = csv.DictReader(f)
+                        for row in reader:
+                            if row.get('Distance') and row.get('Strain'):
+                                # Clean relationship strain name
+                                rel_strain = ' '.join(row['Strain'].strip().split())
+                                rel = (strain_name, rel_strain, float(row['Distance']))
+                                all_relationships.add(rel)
+                                
+                                # Add related strain to strains_data if not exists
+                                if rel_strain not in strains_data:
+                                    strains_data[rel_strain] = {
+                                        'complete': False,
+                                        'rsp': row.get('RSP', ''),
+                                        'dir_name': ''
+                                    }
     
     return strains_data, all_relationships
 
@@ -104,15 +121,19 @@ def parse_summary_relationships(content):
     
     return relationships
 
-def create_distance_matrix(strains_data, all_strains):
+def create_distance_matrix(strains_data, all_relationships):
     """Create a distance matrix including all known relationships"""
     # Create a list of all strain names
     all_strain_names = set()
-    for strain_info in all_strains:
-        strain_name = strain_info.split('(')[0].strip()
-        all_strain_names.add(strain_name)
+    
+    # Add names from strains_data
     for strain_name in strains_data.keys():
         all_strain_names.add(strain_name)
+    
+    # Add names from relationships
+    for strain1, strain2, _ in all_relationships:
+        all_strain_names.add(strain1)
+        all_strain_names.add(strain2)
     
     strain_names = list(all_strain_names)
     n = len(strain_names)
@@ -121,13 +142,13 @@ def create_distance_matrix(strains_data, all_strains):
     distances = np.ones((n, n))
     np.fill_diagonal(distances, 0)  # Set diagonal to 0
     
-    # Fill in known distances
-    for i, strain1 in enumerate(strain_names):
-        for j, strain2 in enumerate(strain_names):
-            if strain1 in strains_data and strain2 in strains_data[strain1]['all_samples']:
-                # Extract the distance from the dictionary structure
-                distances[i,j] = strains_data[strain1]['all_samples'][strain2]['distance']
-                distances[j,i] = distances[i,j]  # Make matrix symmetric
+    # Fill in known distances from relationships
+    name_to_index = {name: i for i, name in enumerate(strain_names)}
+    for strain1, strain2, distance in all_relationships:
+        i = name_to_index[strain1]
+        j = name_to_index[strain2]
+        distances[i,j] = distance
+        distances[j,i] = distance  # Make matrix symmetric
     
     return distances, strain_names
 
@@ -146,164 +167,313 @@ def scrape_missing_strain(strain_info):
             return False
     return False
 
-def create_3d_visualization(strains_data, all_strains):
-    """Create 3D visualization using MDS"""
-    # Create distance matrix
-    distances, strain_names = create_distance_matrix(strains_data, all_strains)
+def create_2d_visualization(strains_data, all_relationships):
+    """Create interactive visualization using Vis.js"""
+    # Create nodes and edges for Vis.js
+    nodes = []
+    edges = []
     
-    # Apply MDS to get 3D coordinates
-    mds = MDS(n_components=3, dissimilarity='precomputed', random_state=42)
-    coords = mds.fit_transform(distances)
+    # Add nodes
+    for strain_name, data in strains_data.items():
+        nodes.append({
+            'id': strain_name,
+            'label': strain_name,
+            'title': f"{strain_name}<br>RSP: {data.get('rsp', '')}<br>{'Has full data' if data['complete'] else 'Click to scrape data'}",
+            'color': {
+                'background': '#2B7CE9' if data['complete'] else '#cccccc',
+                'border': '#2B7CE9' if data['complete'] else '#666666'
+            },
+            'rsp': data.get('rsp', ''),
+            'complete': data['complete']
+        })
     
-    # Create graph for edge visualization
-    G = nx.Graph()
+    # Add edges for close relationships
+    for strain1, strain2, distance in all_relationships:
+        if distance < 0.2:  # Only show close relationships
+            edges.append({
+                'from': strain1,
+                'to': strain2,
+                'value': 1 - distance,  # Convert distance to strength
+                'length': distance * 400  # Scale distance for visualization
+            })
     
-    # Add edges for closely related strains (distance < 0.15)
-    for i, strain1 in enumerate(strain_names):
-        for j, strain2 in enumerate(strain_names):
-            if distances[i,j] < 0.15 and i != j:
-                G.add_edge(strain1, strain2, weight=distances[i,j])
+    # Create HTML template with Vis.js
+    html_template = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Cannabis Strain Network</title>
+        <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+        <style>
+            body { margin: 0; padding: 0; display: flex; font-family: Arial, sans-serif; }
+            #sidebar { 
+                width: 400px; 
+                height: 100vh; 
+                overflow-y: auto; 
+                padding: 20px; 
+                background: #f5f5f5;
+                box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            }
+            #network-container { flex-grow: 1; height: 100vh; }
+            .strain-card {
+                background: white;
+                padding: 20px;
+                margin-bottom: 20px;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .section { margin: 15px 0; }
+            pre { white-space: pre-wrap; font-size: 12px; }
+        </style>
+    </head>
+    <body>
+        <div id="sidebar">
+            <input type="text" id="search-input" placeholder="Search strains...">
+            <div id="strain-info">Select a strain to view details</div>
+        </div>
+        <div id="network-container"></div>
+        
+        <script type="text/javascript">
+            // Create network data
+            const nodes = new vis.DataSet(%s);
+            const edges = new vis.DataSet(%s);
+            
+            // Create network
+            const container = document.getElementById('network-container');
+            const data = { nodes, edges };
+            const options = {
+                physics: {
+                    solver: 'forceAtlas2Based',
+                    forceAtlas2Based: {
+                        gravitationalConstant: -50,
+                        centralGravity: 0.01,
+                        springLength: 100,
+                        springConstant: 0.08,
+                        damping: 0.4,
+                        avoidOverlap: 0.5
+                    },
+                    stabilization: {
+                        iterations: 100
+                    }
+                },
+                nodes: {
+                    shape: 'dot',
+                    size: 20,
+                    font: {
+                        size: 14,
+                        face: 'Arial'
+                    },
+                    borderWidth: 2,
+                    shadow: true
+                },
+                edges: {
+                    width: 2,
+                    smooth: {
+                        type: 'continuous'
+                    },
+                    color: { opacity: 0.5 }
+                },
+                interaction: {
+                    hover: true,
+                    tooltipDelay: 200,
+                    zoomView: true,
+                    dragView: true
+                }
+            };
+            
+            // Initialize network
+            const network = new vis.Network(container, data, options);
+            
+            // Handle node clicks
+            network.on('click', function(params) {
+                if (params.nodes.length > 0) {
+                    const nodeId = params.nodes[0];
+                    const node = nodes.get(nodeId);
+                    
+                    if (node.complete) {
+                        fetch(`/strain_data/${encodeURIComponent(nodeId)}|${encodeURIComponent(node.rsp)}`)
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    displayStrainData(data.data, nodeId, node.rsp);
+                                }
+                            })
+                            .catch(error => console.error('Error:', error));
+                    } else {
+                        document.getElementById('strain-info').innerHTML = `
+                            <div class="strain-card">
+                                <h2>${nodeId}</h2>
+                                <p>RSP: ${node.rsp}</p>
+                                <button onclick="scrapeStrain('${node.rsp}')" class="strain-button">
+                                    Scrape Data
+                                </button>
+                            </div>
+                        `;
+                    }
+                }
+            });
+            
+            function displayStrainData(data, strain, rsp) {
+                const { summary, chemicals, metadata } = data;
+                document.getElementById('strain-info').innerHTML = `
+                    <div class="strain-card">
+                        <h2>${strain}</h2>
+                        <p><strong>RSP:</strong> ${rsp}</p>
+                        
+                        <div class="section">
+                            <h3>General Information</h3>
+                            ${Object.entries(metadata).map(([key, value]) => 
+                                `<p><strong>${key}:</strong> ${value}</p>`
+                            ).join('')}
+                        </div>
+                        
+                        <div class="section">
+                            <h3>Chemical Content</h3>
+                            ${chemicals.map(c => 
+                                `<p><strong>${c.Name}:</strong> ${c.Value}</p>`
+                            ).join('')}
+                        </div>
+                        
+                        <div class="section">
+                            <h3>Genetic Information</h3>
+                            <pre>${summary}</pre>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Add search functionality
+            document.getElementById('search-input').addEventListener('input', function(e) {
+                const searchTerm = e.target.value.toLowerCase();
+                const allNodes = nodes.get();
+                allNodes.forEach(node => {
+                    const matches = node.label.toLowerCase().includes(searchTerm);
+                    nodes.update({
+                        id: node.id,
+                        opacity: matches ? 1 : 0.2
+                    });
+                });
+            });
+        </script>
+    </body>
+    </html>
+    """ % (json.dumps(nodes), json.dumps(edges))
     
-    # Create edge traces
-    edge_x = []
-    edge_y = []
-    edge_z = []
-    
-    for edge in G.edges():
-        x0, y0, z0 = coords[strain_names.index(edge[0])]
-        x1, y1, z1 = coords[strain_names.index(edge[1])]
-        edge_x.extend([x0, x1, None])
-        edge_y.extend([y0, y1, None])
-        edge_z.extend([z0, z1, None])
-    
-    # Create customdata with RSP numbers
-    customdata = []
-    for name in strain_names:
-        if name not in strains_data:
-            # Look for RSP number in relationships
-            rsp_info = None
-            # First check in all_samples relationships
-            for strain1 in strains_data:
-                if name in strains_data[strain1]['all_samples']:
-                    rsp_info = strains_data[strain1]['all_samples'][name]['rsp']
-                    break
-            # If not found, check in base_tree relationships
-            if not rsp_info:
-                for strain1 in strains_data:
-                    if name in strains_data[strain1]['base_tree']:
-                        rsp_info = strains_data[strain1]['base_tree'][name]['rsp']
-                        break
-            customdata.append(rsp_info)
-        else:
-            # For strains we have data for, use their ref_number
-            customdata.append(strains_data[name]['ref_number'])
-    
-    # Determine node colors based on whether we have full data
-    node_colors = ['darkblue' if name in strains_data else 'lightgray' for name in strain_names]
-    
-    # Create visualization
-    fig = go.Figure(data=[
-        # Add edges
-        go.Scatter3d(
-            x=edge_x, y=edge_y, z=edge_z,
-            mode='lines',
-            line=dict(color='lightgray', width=1),
-            hoverinfo='none'
-        ),
-        # Add nodes
-        go.Scatter3d(
-            x=coords[:,0],
-            y=coords[:,1],
-            z=coords[:,2],
-            mode='markers+text',
-            text=strain_names,
-            hovertext=[f"{name}<br>RSP: {customdata[i] if customdata[i] else 'N/A'}<br>{'Has full data' if name in strains_data else 'Click to scrape data'}" 
-                      for i, name in enumerate(strain_names)],
-            hoverinfo='text',
-            marker=dict(
-                size=8,
-                color=node_colors,
-                opacity=0.8
-            ),
-            customdata=customdata
-        )
-    ])
-    
-    # Update layout
-    fig.update_layout(
-        title='3D Cannabis Strain Genetic Relationships',
-        scene=dict(
-            xaxis_title='Dimension 1',
-            yaxis_title='Dimension 2',
-            zaxis_title='Dimension 3'
-        ),
-        showlegend=False,
-        margin=dict(l=0, r=0, t=30, b=0)
-    )
-    
-    return fig
+    return html_template
 
 class ScraperHandler(SimpleHTTPRequestHandler):
-    def do_GET(self):
-        if self.path.startswith('/scrape/'):
-            print("\n" + "="*50)
-            print("SCRAPING REQUEST STARTED")
-            print("="*50)
+    def get_strain_data(self, strain_name, rsp):
+        """Read strain data from files"""
+        try:
+            print(f"\n=== Reading data for {strain_name} (RSP: {rsp}) ===")
             
-            try:
-                # Get the Python executable from the current virtual environment
-                python_executable = sys.executable
-                print(f"Using Python from: {python_executable}")
+            # Construct directory path - fix the path to look in current directory
+            dir_name = f"{strain_name.replace(' ', '_')}-{rsp.lower()}"
+            base_path = os.path.join('.', 'plants', dir_name)  # Changed path
+            print(f"Looking in directory: {base_path}")
+            
+            if not os.path.exists(base_path):
+                print(f"Directory not found: {base_path}")
+                return None
+            
+            # Construct file paths
+            base_name = strain_name.replace(' ', '_')
+            summary_file = os.path.join(base_path, f"{base_name}_summary.txt")
+            chemicals_file = os.path.join(base_path, f"{base_name}.chemicals.csv")
+            metadata_file = os.path.join(base_path, f"{base_name}.metadata.csv")
+            
+            print(f"Checking files exist:")
+            print(f"Summary: {os.path.exists(summary_file)}")
+            print(f"Chemicals: {os.path.exists(chemicals_file)}")
+            print(f"Metadata: {os.path.exists(metadata_file)}")
+            
+            # Read summary file
+            with open(summary_file, 'r', encoding='utf-8') as f:
+                summary = f.read()
+                print("✓ Read summary file")
+            
+            # Read chemicals file
+            chemicals = []
+            with open(chemicals_file, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                chemicals = [
+                    {
+                        'Name': row['Name'],
+                        'Value': row['Value'],
+                        'Type': 'Cannabinoid' if 'THC' in row['Name'] or 'CBD' in row['Name'] 
+                               else 'Terpenoid'
+                    }
+                    for row in reader
+                ]
+                print(f"✓ Read {len(chemicals)} chemical entries")
+            
+            # Read metadata file
+            with open(metadata_file, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                metadata = next(reader)
+                print("✓ Read metadata")
+            
+            data = {
+                'summary': summary,
+                'chemicals': chemicals,
+                'metadata': metadata
+            }
+            print("=== Successfully loaded all data ===\n")
+            return data
+            
+        except Exception as e:
+            print(f"\n!!! Error reading strain data: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return None
 
-                # Extract RSP number from path
-                rsp_number = self.path.split('/scrape/')[1]
-                rsp_number = urllib.parse.unquote(rsp_number)
-                print(f"[1] Attempting to scrape RSP number: {rsp_number}")
+    def do_GET(self):
+        print(f"\nGET request: {self.path}")
+        
+        if self.path == '/':
+            # Redirect root to visualization.html
+            self.send_response(301)
+            self.send_header('Location', '/visualization.html')
+            self.end_headers()
+            return
+            
+        elif self.path == '/visualization.html':
+            try:
+                with open('visualization.html', 'rb') as f:
+                    content = f.read()
+                    self.send_response(200)
+                    self.send_header('Content-type', 'text/html')
+                    self.end_headers()
+                    self.wfile.write(content)
+                    print("✓ Served visualization.html")
+                    return
+            except Exception as e:
+                print(f"!!! Error serving visualization: {e}")
+                self.send_error(500)
+                return
                 
-                # Run the scraper script using the virtual environment's Python
-                cmd = [python_executable, 'kaana_scraper.py', '-u', rsp_number]
-                print(f"[2] Running command: {' '.join(cmd)}")
+        elif self.path.startswith('/strain_data/'):
+            try:
+                path_parts = self.path.split('/strain_data/')[1]
+                strain_name, rsp = urllib.parse.unquote(path_parts).split('|')
+                print(f"\nRequested data for: {strain_name} (RSP: {rsp})")
                 
-                # First ensure playwright is installed
-                try:
-                    import playwright
-                except ImportError:
-                    print("[2a] Installing playwright...")
-                    subprocess.run([python_executable, '-m', 'pip', 'install', 'playwright'], check=True)
-                    print("[2b] Installing playwright browsers...")
-                    subprocess.run([python_executable, '-m', 'playwright', 'install'], check=True)
-                
-                process = subprocess.Popen(
-                    cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True
-                )
-                
-                stdout, stderr = process.communicate()
-                
-                print("[3] Scraper Output:")
-                print(stdout)
-                if stderr:
-                    print("[3a] Scraper Errors:")
-                    print(stderr)
-                
-                if process.returncode == 0:
-                    print("[4] Scraping completed successfully")
+                strain_data = self.get_strain_data(strain_name, rsp)
+                if strain_data:
                     self.send_response(200)
                     self.send_header('Content-type', 'application/json')
                     self.send_header('Access-Control-Allow-Origin', '*')
                     self.end_headers()
                     self.wfile.write(json.dumps({
                         'success': True,
-                        'message': 'Scraping completed successfully',
-                        'output': stdout
+                        'data': strain_data
                     }).encode())
+                    print("✓ Sent strain data")
                 else:
-                    raise Exception(f"Scraper failed with return code {process.returncode}")
+                    raise Exception("Could not read strain data")
                 
             except Exception as e:
-                print(f"[ERROR] Scraping failed: {str(e)}")
+                print(f"!!! Error: {str(e)}")
                 self.send_response(500)
                 self.send_header('Content-type', 'application/json')
                 self.send_header('Access-Control-Allow-Origin', '*')
@@ -312,13 +482,14 @@ class ScraperHandler(SimpleHTTPRequestHandler):
                     'success': False,
                     'error': str(e)
                 }).encode())
-            
-            print("="*50)
-            print("SCRAPING REQUEST ENDED")
-            print("="*50)
-            
+                
         else:
-            return SimpleHTTPRequestHandler.do_GET(self)
+            # Serve static files
+            try:
+                return SimpleHTTPRequestHandler.do_GET(self)
+            except Exception as e:
+                print(f"!!! Error serving static file: {e}")
+                self.send_error(404)
 
 def start_server(port=8000):
     """Start the HTTP server"""
@@ -329,7 +500,6 @@ def start_server(port=8000):
     return server
 
 def main():
-    # Load data and create visualization
     print("\n=== Starting Visualization Server ===")
     print("Loading strain data...")
     strains_data, all_relationships = load_strain_data('.')
@@ -337,108 +507,28 @@ def main():
     print(f"Found {len(all_relationships)} total relationships")
     
     print("\nCreating visualization...")
-    fig = create_3d_visualization(strains_data, all_relationships)
+    html_content = create_2d_visualization(strains_data, all_relationships)
     
+    # Save the HTML file
     print("\nSaving HTML file...")
-    html_content = fig.to_html(
-        include_plotlyjs=True,
-        full_html=True,
-        include_mathjax=False,
-    )
-    
-    # Add custom JavaScript for click handling
-    click_script = """
-    <script>
-        function showStatus(message, isError = false) {
-            const status = document.getElementById('scrape-status') || document.createElement('div');
-            status.id = 'scrape-status';
-            status.style.position = 'fixed';
-            status.style.top = '10px';
-            status.style.left = '50%';
-            status.style.transform = 'translateX(-50%)';
-            status.style.padding = '15px';
-            status.style.backgroundColor = isError ? '#ffebee' : '#fff';
-            status.style.border = `1px solid ${isError ? '#ef5350' : '#ccc'}`;
-            status.style.borderRadius = '5px';
-            status.style.zIndex = '1000';
-            status.innerHTML = message;
-            
-            if (!status.parentElement) {
-                document.body.appendChild(status);
-            }
-            
-            return status;
-        }
-
-        var plot = document.getElementsByClassName('plotly-graph-div')[0];
-        plot.on('plotly_click', function(data) {
-            var point = data.points[0];
-            if (point.customdata) {
-                var rspNumber = point.customdata;
-                console.log('Checking RSP number:', rspNumber);
-                
-                if (rspNumber) {
-                    if (confirm('Would you like to scrape data for ' + point.text + ' (' + rspNumber + ')?')) {
-                        const status = showStatus('Scraping data for ' + point.text + '...');
-                        console.log('Starting scrape request for:', rspNumber);
-                        
-                        fetch('/scrape/' + rspNumber.toLowerCase())
-                            .then(response => {
-                                console.log('Received response:', response);
-                                return response.json();
-                            })
-                            .then(data => {
-                                console.log('Scraping result:', data);
-                                if (data.success) {
-                                    status.innerHTML = 'Successfully scraped data! Refreshing...';
-                                    setTimeout(() => {
-                                        location.reload();
-                                    }, 2000);
-                                } else {
-                                    showStatus('Error: ' + data.error, true);
-                                    setTimeout(() => {
-                                        status.remove();
-                                    }, 5000);
-                                }
-                            })
-                            .catch(error => {
-                                console.error('Fetch error:', error);
-                                showStatus('Error: ' + error, true);
-                                setTimeout(() => {
-                                    status.remove();
-                                }, 5000);
-                            });
-                    }
-                } else {
-                    console.error('No RSP number found for:', point.text);
-                    showStatus('Error: Could not find RSP number for this strain', true);
-                }
-            }
-        });
-    </script>
-    """
-    
-    html_content = html_content.replace('</body>', f'{click_script}</body>')
-    
-    with open('genetic_relationships_3d.html', 'w', encoding='utf-8') as f:
+    with open('visualization.html', 'w', encoding='utf-8') as f:
         f.write(html_content)
     
-    print("\nStarting local server...")
-    server = start_server()
+    # Start the server
+    port = 8000
+    server = ThreadingHTTPServer(('', port), ScraperHandler)
+    print(f"\nServer started at http://localhost:{port}")
+    print("Press Ctrl+C to stop the server")
     
-    print("\nOpening visualization in browser...")
-    webbrowser.open('http://localhost:8000/genetic_relationships_3d.html')
-    
-    print("\n=== Server Ready ===")
-    print("Gray nodes indicate strains with missing data - click them to scrape")
-    print("\nPress Ctrl+C to stop the server and exit")
+    # Open the visualization in the default browser
+    webbrowser.open(f'http://localhost:{port}/visualization.html')
     
     try:
-        while True:
-            input()
+        server.serve_forever()
     except KeyboardInterrupt:
         print("\nShutting down server...")
         server.shutdown()
+        server.server_close()
 
 if __name__ == "__main__":
     main() 
