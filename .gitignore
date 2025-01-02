@@ -1,0 +1,8 @@
+.env
+*.json
+__pycache__/ 
+plants/
+*.txt
+*.csv
+*.json
+
