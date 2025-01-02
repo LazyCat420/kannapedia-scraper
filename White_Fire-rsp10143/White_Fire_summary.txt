@@ -1,0 +1,74 @@
+================================================================================
+White_Fire (RSP10143) Summary
+================================================================================
+
+GENERAL INFORMATION
+--------------------------------------------------------------------------------
+Grower: The List Exchange
+Sample Name: 
+Accession Date: February 8, 2016
+Reported Sex: Female
+Report Type: StrainSEEK v1
+Rarity: Common
+Plant Type: 
+Reported Heterozygosity: 1.2418%
+Y Ratio Distribution: 
+
+CHEMICAL CONTENT
+--------------------------------------------------------------------------------
+Cannabinoids:
+
+Terpenoids:
+
+GENETIC RELATIONSHIPS
+--------------------------------------------------------------------------------
+Nearest Genetic Relatives (All Samples):
+  0.093 - Ghost OG (RSP10472)(rsp10472)
+  0.123 - Headband (RSP10154)(rsp10154)
+  0.128 - Fire OG (RSP10097)(rsp10097)
+  0.129 - Skywalker OG (RSP10477)(rsp10477)
+  0.130 - Triangle OG (RSP10157)(rsp10157)
+  0.134 - Unknown (RSP10417)(rsp10417)
+  0.135 - Glue on Fire  1 (RSP10592)(rsp10592)
+  0.139 - Lemonhead OG (RSP10180)(rsp10180)
+  0.148 - Chem 4 (RSP10540)(rsp10540)
+  0.158 - Chemmy Jones (RSP10131)(rsp10131)
+  0.159 - 78 OG AFFIE (RSP10100)(rsp10100)
+  0.159 - Special K (RSP10223)(rsp10223)
+  0.162 - Gupta Kush (RSP10520)(rsp10520)
+  0.162 - Rugburn OG (RSP10541)(rsp10541)
+  0.170 - Cornbread (RSP10539)(rsp10539)
+  0.175 - OG Kush X Pure Kush (RSP10398)(rsp10398)
+  0.179 - Guptilla (RSP10518)(rsp10518)
+  0.181 - Camelot Kush (RSP10249)(rsp10249)
+  0.186 - Girl Scout Cookies (RSP10141)(rsp10141)
+  0.186 - Sugar Cookies (RSP10137)(rsp10137)
+
+Nearest Genetic Relatives (Base Tree):
+  0.125 - Triangle OG (RSP10157)(rsp10157)
+  0.150 - Chemmy Jones (RSP10131)(rsp10131)
+  0.167 - Girl Scout Cookies (RSP10246)(rsp10246)
+  0.184 - Camelot Kush (RSP10249)(rsp10249)
+  0.194 - F-CANCER (RSP10080)(rsp10080)
+  0.199 - VITAMIN CBD (RSP10078)(rsp10078)
+  0.204 - Purple Kush (RSP10095)(rsp10095)
+  0.213 - Cherry Limeade (RSP10169)(rsp10169)
+  0.221 - WiFi (RSP10206)(rsp10206)
+  0.222 - Grape Lui (RSP10198)(rsp10198)
+  0.236 - ChemDog (RSP10387)(rsp10387)
+  0.255 - TRIDENT (RSP10074)(rsp10074)
+  0.258 - East Coast Sour Diesel (RSP10243)(rsp10243)
+  0.258 - Australian Bastard (RSP10216)(rsp10216)
+  0.262 - HARLEQUIN TSUNAMI (RSP10099)(rsp10099)
+  0.263 - Cannatsu (RSP10158)(rsp10158)
+  0.266 - Durban Poison (RSP10150)(rsp10150)
+  0.268 - Super Lemon Haze (RSP10139)(rsp10139)
+  0.277 - CANNATONIC (RSP10082)(rsp10082)
+  0.280 - Dutch Treat Haze (RSP10197)(rsp10197)
+
+Most Genetically Distant Strains:
+
+BLOCKCHAIN INFORMATION
+--------------------------------------------------------------------------------
+Transaction ID: a04788424c3206019a933c4699ee669f764e322ead30473c902f718fc45fc14b
+SHASUM Hash: ['http://mgcdata.s3.amazonaws.com/analyses/RSP10143_AM89J_20160930160533/RSP10143_AM89J_S4_2016093016065.vcf.gz.filtered.vcf', 'http://mgcdata.s3.amazonaws.com/rsp_fastqs/RSP10143_ACACAA_AM89J/RSP10143_ACACAA_S4_L001_R1_001.fastq.gz', 'http://mgcdata.s3.amazonaws.com/rsp_fastqs/RSP10143_ACACAA_AM89J/RSP10143_ACACAA_S4_L001_R2_001.fastq.gz']
