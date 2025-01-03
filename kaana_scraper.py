@@ -6,6 +6,11 @@ from playwright.async_api import async_playwright
 import asyncio
 import re
 import csv
+import sys
+import io
+
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 async def scrape_strain_data(rsp_number):
     """Scrape data for a specific strain using its RSP number"""
@@ -209,7 +214,7 @@ async def scrape_strain_data(rsp_number):
                 }
             """)
             
-            print("Extracted data:", strain_data)
+            print("Extracted data:", str(strain_data).encode('utf-8', errors='replace').decode('utf-8'))
             
             # Create directory structure
             strain_dir = os.path.join('plants', f"{strain_data['name'].replace(' ', '_')}-{rsp_number}")
