@@ -24,7 +24,7 @@ async def scrape_strain_data(rsp_number):
             
             # Extract all data using JavaScript evaluation
             strain_data = await page.evaluate("""
-            () => {
+                () => {
                     const data = {
                         name: '',
                         general_info: {},
@@ -111,10 +111,10 @@ async def scrape_strain_data(rsp_number):
                     // Get heterozygosity
                     const heteroText = document.evaluate(
                         "//text()[contains(., 'Heterozygosity:')]",
-                    document,
-                    null,
-                    XPathResult.FIRST_ORDERED_NODE_TYPE,
-                    null
+                        document,
+                        null,
+                        XPathResult.FIRST_ORDERED_NODE_TYPE,
+                        null
                     ).singleNodeValue;
                     if (heteroText) {
                         const match = heteroText.textContent.match(/Heterozygosity:\s*([\d.]+%)/);
@@ -126,10 +126,10 @@ async def scrape_strain_data(rsp_number):
                     // Get rarity
                     const rarityText = document.evaluate(
                         "//text()[contains(., 'Rarity:')]",
-                    document,
-                    null,
-                    XPathResult.FIRST_ORDERED_NODE_TYPE,
-                    null
+                        document,
+                        null,
+                        XPathResult.FIRST_ORDERED_NODE_TYPE,
+                        null
                     ).singleNodeValue;
                     if (rarityText) {
                         const match = rarityText.textContent.match(/Rarity:\s*(\w+)/);
@@ -245,51 +245,51 @@ async def scrape_strain_data(rsp_number):
             # Save summary text file
             summary_path = os.path.join(strain_dir, f"{strain_data['name'].replace(' ', '_')}_summary.txt")
             with open(summary_path, 'w', encoding='utf-8') as f:
-        f.write(f"{'='*80}\n")
+                f.write(f"{'='*80}\n")
                 f.write(f"{strain_data['name']} ({rsp_number.upper()}) Summary\n")
-        f.write(f"{'='*80}\n\n")
-        
+                f.write(f"{'='*80}\n\n")
+                
                 # Write general information
-        f.write("GENERAL INFORMATION\n")
-        f.write(f"{'-'*80}\n")
+                f.write("GENERAL INFORMATION\n")
+                f.write(f"{'-'*80}\n")
                 for key, value in strain_data['general_info'].items():
                     f.write(f"{key}: {value}\n")
                 f.write("\n")
                 
                 # Write chemical content
-        f.write("CHEMICAL CONTENT\n")
-        f.write(f"{'-'*80}\n")
-        f.write("Cannabinoids:\n")
+                f.write("CHEMICAL CONTENT\n")
+                f.write(f"{'-'*80}\n")
+                f.write("Cannabinoids:\n")
                 for name, value in strain_data['chemical_content']['cannabinoids'].items():
                     f.write(f"  {name}: {value}\n")
-        f.write("\nTerpenoids:\n")
+                f.write("\nTerpenoids:\n")
                 for name, value in strain_data['chemical_content']['terpenoids'].items():
                     f.write(f"  {name}: {value}\n")
-        f.write("\n")
-        
+                f.write("\n")
+                
                 # Write genetic relationships
-        f.write("GENETIC RELATIONSHIPS\n")
-        f.write(f"{'-'*80}\n")
-        
-        f.write("Nearest Genetic Relatives (All Samples):\n")
+                f.write("GENETIC RELATIONSHIPS\n")
+                f.write(f"{'-'*80}\n")
+                
+                f.write("Nearest Genetic Relatives (All Samples):\n")
                 for rel in strain_data['genetic_relationships']['all_samples']:
                     f.write(f"  {rel['distance']:.3f} - {rel['strain']} ({rel['rsp'].upper()})({rel['rsp']})\n")
-        f.write("\n")
-        
-        f.write("Nearest Genetic Relatives (Base Tree):\n")
+                f.write("\n")
+                
+                f.write("Nearest Genetic Relatives (Base Tree):\n")
                 for rel in strain_data['genetic_relationships']['base_tree']:
                     f.write(f"  {rel['distance']:.3f} - {rel['strain']} ({rel['rsp'].upper()})({rel['rsp']})\n")
-        f.write("\n")
-        
+                f.write("\n")
+                
                 if strain_data['genetic_relationships']['most_distant']:
-        f.write("Most Genetically Distant Strains:\n")
+                    f.write("Most Genetically Distant Strains:\n")
                     for rel in strain_data['genetic_relationships']['most_distant']:
                         f.write(f"  {rel['distance']:.3f} - {rel['strain']} ({rel['rsp'].upper()})({rel['rsp']})\n")
-        f.write("\n")
-        
+                f.write("\n")
+                
                 # Write blockchain information
-        f.write("BLOCKCHAIN INFORMATION\n")
-        f.write(f"{'-'*80}\n")
+                f.write("BLOCKCHAIN INFORMATION\n")
+                f.write(f"{'-'*80}\n")
                 if strain_data['blockchain'].get('txid'):
                     f.write(f"Transaction ID: {strain_data['blockchain']['txid']}\n")
                 if strain_data['blockchain'].get('shasum'):
