@@ -284,6 +284,56 @@ def create_2d_visualization(strains_data, all_relationships):
             // Initialize network
             const network = new vis.Network(container, data, options);
             
+            // Add scrapeStrain function
+            async function scrapeStrain(rsp) {
+                if (!rsp) {
+                    console.error('No RSP number provided');
+                    return;
+                }
+
+                const strainInfo = document.getElementById('strain-info');
+                strainInfo.innerHTML = `
+                    <div class="strain-card">
+                        <h2>Scraping Data...</h2>
+                        <p>Please wait while we fetch data for RSP: ${rsp}</p>
+                    </div>
+                `;
+
+                try {
+                    const response = await fetch(`/scrape/${rsp}`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        // Update node appearance
+                        const strain_name = data.strain_name;
+                        nodes.update({
+                            id: strain_name,
+                            complete: true,
+                            color: {
+                                background: '#2B7CE9',
+                                border: '#2B7CE9'
+                            }
+                        });
+                        
+                        // Display the scraped data
+                        displayStrainData(data.strain_data, strain_name, rsp);
+                    } else {
+                        throw new Error(data.error || 'Failed to scrape data');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    strainInfo.innerHTML = `
+                        <div class="strain-card">
+                            <h2>Error</h2>
+                            <p>Failed to scrape data: ${error.message}</p>
+                            <button onclick="scrapeStrain('${rsp}')" class="strain-button">
+                                Try Again
+                            </button>
+                        </div>
+                    `;
+                }
+            }
+            
             // Handle node clicks
             network.on('click', function(params) {
                 if (params.nodes.length > 0) {
@@ -450,6 +500,75 @@ class ScraperHandler(SimpleHTTPRequestHandler):
             except Exception as e:
                 print(f"!!! Error serving visualization: {e}")
                 self.send_error(500)
+                return
+                
+        elif self.path.startswith('/scrape/'):
+            try:
+                rsp = self.path.split('/scrape/')[1]
+                print(f"Scraping strain with RSP: {rsp}")
+                
+                # Get the absolute path to the project directory and parent directory
+                base_dir = os.path.dirname(os.path.abspath(__file__))
+                parent_dir = os.path.dirname(base_dir)
+                
+                # Get path to virtual environment Python
+                if os.name == 'nt':  # Windows
+                    python_path = os.path.join(parent_dir, 'venv', 'Scripts', 'python.exe')
+                else:  # Unix/Linux/Mac
+                    python_path = os.path.join(parent_dir, 'venv', 'bin', 'python')
+                
+                scraper_path = os.path.join(base_dir, 'kaana_scraper.py')
+                print(f"Using Python from: {python_path}")
+                print(f"Running scraper from: {scraper_path}")
+                
+                # Run the scraper using venv Python
+                process = subprocess.run(
+                    [python_path, scraper_path, '-u', rsp],
+                    capture_output=True,
+                    text=True,
+                    cwd=base_dir
+                )
+                
+                if process.returncode == 0:
+                    # Get the strain name from the newly created directory
+                    strain_dir = None
+                    for root, dirs, files in os.walk('./plants'):
+                        for dir in dirs:
+                            if rsp.lower() in dir.lower():
+                                strain_dir = dir
+                                break
+                    if strain_dir:
+                        strain_name = ' '.join(strain_dir.split('-')[0].strip().split('_'))
+                        
+                        # Get the strain data
+                        strain_data = self.get_strain_data(strain_name, rsp)
+                        
+                        self.send_response(200)
+                        self.send_header('Content-type', 'application/json')
+                        self.send_header('Access-Control-Allow-Origin', '*')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({
+                            'success': True,
+                            'strain_name': strain_name,
+                            'strain_data': strain_data
+                        }).encode())
+                    else:
+                        raise Exception("Could not find scraped strain directory")
+                else:
+                    print("Scraper Error Output:")
+                    print(process.stderr)
+                    raise Exception(f"Scraper failed: {process.stderr}")
+                
+            except Exception as e:
+                print(f"Error during scraping: {str(e)}")
+                self.send_response(500)
+                self.send_header('Content-type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'success': False,
+                    'error': str(e)
+                }).encode())
                 return
                 
         elif self.path.startswith('/strain_data/'):
