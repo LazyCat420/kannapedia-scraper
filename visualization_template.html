@@ -149,6 +149,59 @@
         // Keep track of currently shown edges
         let currentEdges = new Set();
         
+        // Add this function before the network click handler
+        async function scrapeStrain(rsp) {
+            if (!rsp) {
+                console.error('No RSP number provided');
+                return;
+            }
+            
+            try {
+                // Show loading state
+                document.getElementById('strain-info').innerHTML = `
+                    <div class="strain-card">
+                        <h2>Scraping Data...</h2>
+                        <p>Please wait while we fetch the data for RSP: ${rsp}</p>
+                    </div>
+                `;
+                
+                // Call the scraping endpoint
+                const response = await fetch(`/scrape/${rsp}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Refresh the node data
+                    const updatedNode = nodes.get(data.strain_name);
+                    if (updatedNode) {
+                        nodes.update({
+                            id: data.strain_name,
+                            complete: true,
+                            color: {
+                                background: '#2B7CE9',
+                                border: '#2B7CE9'
+                            }
+                        });
+                    }
+                    
+                    // Display the scraped data
+                    displayStrainData(data.strain_data, data.strain_name, rsp);
+                } else {
+                    throw new Error(data.error || 'Failed to scrape data');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('strain-info').innerHTML = `
+                    <div class="strain-card">
+                        <h2>Error</h2>
+                        <p>Failed to scrape data: ${error.message}</p>
+                        <button onclick="scrapeStrain('${rsp}')" class="strain-button">
+                            Try Again
+                        </button>
+                    </div>
+                `;
+            }
+        }
+        
         // Handle node clicks
         network.on('click', function(params) {
             if (params.nodes.length > 0) {
@@ -192,9 +245,11 @@
                         <div class="strain-card">
                             <h2>${nodeId}</h2>
                             <p>RSP: ${node.rsp}</p>
-                            <button onclick="scrapeStrain('${node.rsp}')" class="strain-button">
-                                Scrape Data
-                            </button>
+                            ${node.rsp ? `
+                                <button onclick="scrapeStrain('${node.rsp}')" class="strain-button">
+                                    Scrape Data
+                                </button>
+                            ` : '<p>No RSP number available for this strain</p>'}
                         </div>
                     `;
                 }
@@ -246,6 +301,25 @@
                 });
             });
         });
+        
+        // Add some CSS for the strain button
+        const style = document.createElement('style');
+        style.textContent = `
+            .strain-button {
+                background: #2B7CE9;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 14px;
+                margin-top: 10px;
+            }
+            .strain-button:hover {
+                background: #1f5aa7;
+            }
+        `;
+        document.head.appendChild(style);
     </script>
 </body>
 </html> 

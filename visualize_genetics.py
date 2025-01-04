@@ -304,39 +304,30 @@ class ScraperHandler(SimpleHTTPRequestHandler):
                 rsp = self.path.split('/scrape/')[1]
                 print(f"Scraping strain with RSP: {rsp}")
                 
-                # Get the absolute path to the project directory and parent directory
-                base_dir = os.path.dirname(os.path.abspath(__file__))
-                parent_dir = os.path.dirname(base_dir)
+                # Get the absolute path to kaana_scraper.py
+                scraper_path = os.path.join(os.path.dirname(__file__), 'kaana_scraper.py')
                 
-                # Get path to virtual environment Python
-                if os.name == 'nt':  # Windows
-                    python_path = os.path.join(parent_dir, 'venv', 'Scripts', 'python.exe')
-                else:  # Unix/Linux/Mac
-                    python_path = os.path.join(parent_dir, 'venv', 'bin', 'python')
-                
-                scraper_path = os.path.join(base_dir, 'kaana_scraper.py')
-                print(f"Using Python from: {python_path}")
-                print(f"Running scraper from: {scraper_path}")
-                
-                # Run the scraper using venv Python
+                # Run the scraper
                 process = subprocess.run(
-                    [python_path, scraper_path, '-u', rsp],
+                    [sys.executable, scraper_path, '-u', rsp],
                     capture_output=True,
                     text=True,
-                    cwd=base_dir
+                    check=True
                 )
                 
                 if process.returncode == 0:
-                    # Get the strain name from the newly created directory
+                    # Find the newly created directory
                     strain_dir = None
+                    strain_name = None
+                    
                     for root, dirs, files in os.walk('./plants'):
                         for dir in dirs:
                             if rsp.lower() in dir.lower():
                                 strain_dir = dir
+                                strain_name = ' '.join(dir.split('-')[0].strip().split('_'))
                                 break
-                    if strain_dir:
-                        strain_name = ' '.join(strain_dir.split('-')[0].strip().split('_'))
-                        
+                    
+                    if strain_dir and strain_name:
                         # Get the strain data
                         strain_data = self.get_strain_data(strain_name, rsp)
                         
@@ -352,10 +343,8 @@ class ScraperHandler(SimpleHTTPRequestHandler):
                     else:
                         raise Exception("Could not find scraped strain directory")
                 else:
-                    print("Scraper Error Output:")
-                    print(process.stderr)
                     raise Exception(f"Scraper failed: {process.stderr}")
-                
+                    
             except Exception as e:
                 print(f"Error during scraping: {str(e)}")
                 self.send_response(500)
@@ -400,12 +389,8 @@ class ScraperHandler(SimpleHTTPRequestHandler):
                 }).encode())
                 
         else:
-            # Serve static files
-            try:
-                return SimpleHTTPRequestHandler.do_GET(self)
-            except Exception as e:
-                print(f"!!! Error serving static file: {e}")
-                self.send_error(404)
+            # Handle other routes as before
+            return super().do_GET()
 
 def start_server(port=8000):
     """Start the HTTP server"""
