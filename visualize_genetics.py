@@ -171,7 +171,7 @@ def create_2d_visualization(strains_data, all_relationships):
     """Create interactive visualization using Vis.js"""
     # Create nodes and edges for Vis.js
     nodes = []
-    edges = []
+    relationships = []
     
     # Add nodes
     for strain_name, data in strains_data.items():
@@ -187,229 +187,26 @@ def create_2d_visualization(strains_data, all_relationships):
             'complete': data['complete']
         })
     
-    # Add edges for close relationships
+    # Convert relationships to format needed by frontend
     for strain1, strain2, distance in all_relationships:
-        if distance < 0.2:  # Only show close relationships
-            edges.append({
-                'from': strain1,
-                'to': strain2,
-                'value': 1 - distance,  # Convert distance to strength
-                'length': distance * 400  # Scale distance for visualization
-            })
-    
-    # Create HTML template with Vis.js
-    html_template = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Cannabis Strain Network</title>
-        <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
-        <style>
-            body { margin: 0; padding: 0; display: flex; font-family: Arial, sans-serif; }
-            #sidebar { 
-                width: 400px; 
-                height: 100vh; 
-                overflow-y: auto; 
-                padding: 20px; 
-                background: #f5f5f5;
-                box-shadow: 2px 0 5px rgba(0,0,0,0.1);
-            }
-            #network-container { flex-grow: 1; height: 100vh; }
-            .strain-card {
-                background: white;
-                padding: 20px;
-                margin-bottom: 20px;
-                border-radius: 8px;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            }
-            .section { margin: 15px 0; }
-            pre { white-space: pre-wrap; font-size: 12px; }
-        </style>
-    </head>
-    <body>
-        <div id="sidebar">
-            <input type="text" id="search-input" placeholder="Search strains...">
-            <div id="strain-info">Select a strain to view details</div>
-        </div>
-        <div id="network-container"></div>
-        
-        <script type="text/javascript">
-            // Create network data
-            const nodes = new vis.DataSet(%s);
-            const edges = new vis.DataSet(%s);
-            
-            // Create network
-            const container = document.getElementById('network-container');
-            const data = { nodes, edges };
-            const options = {
-                physics: {
-                    solver: 'forceAtlas2Based',
-                    forceAtlas2Based: {
-                        gravitationalConstant: -50,
-                        centralGravity: 0.01,
-                        springLength: 100,
-                        springConstant: 0.08,
-                        damping: 0.4,
-                        avoidOverlap: 0.5
-                    },
-                    stabilization: {
-                        iterations: 100
-                    }
-                },
-                nodes: {
-                    shape: 'dot',
-                    size: 20,
-                    font: {
-                        size: 14,
-                        face: 'Arial'
-                    },
-                    borderWidth: 2,
-                    shadow: true
-                },
-                edges: {
-                    width: 2,
-                    smooth: {
-                        type: 'continuous'
-                    },
-                    color: { opacity: 0.5 }
-                },
-                interaction: {
-                    hover: true,
-                    tooltipDelay: 200,
-                    zoomView: true,
-                    dragView: true
-                }
-            };
-            
-            // Initialize network
-            const network = new vis.Network(container, data, options);
-            
-            // Add scrapeStrain function
-            async function scrapeStrain(rsp) {
-                if (!rsp) {
-                    console.error('No RSP number provided');
-                    return;
-                }
+        relationships.append({
+            'from': strain1,
+            'to': strain2,
+            'distance': distance
+        })
 
-                const strainInfo = document.getElementById('strain-info');
-                strainInfo.innerHTML = `
-                    <div class="strain-card">
-                        <h2>Scraping Data...</h2>
-                        <p>Please wait while we fetch data for RSP: ${rsp}</p>
-                    </div>
-                `;
-
-                try {
-                    const response = await fetch(`/scrape/${rsp}`);
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        // Update node appearance
-                        const strain_name = data.strain_name;
-                        nodes.update({
-                            id: strain_name,
-                            complete: true,
-                            color: {
-                                background: '#2B7CE9',
-                                border: '#2B7CE9'
-                            }
-                        });
-                        
-                        // Display the scraped data
-                        displayStrainData(data.strain_data, strain_name, rsp);
-                    } else {
-                        throw new Error(data.error || 'Failed to scrape data');
-                    }
-                } catch (error) {
-                    console.error('Error:', error);
-                    strainInfo.innerHTML = `
-                        <div class="strain-card">
-                            <h2>Error</h2>
-                            <p>Failed to scrape data: ${error.message}</p>
-                            <button onclick="scrapeStrain('${rsp}')" class="strain-button">
-                                Try Again
-                            </button>
-                        </div>
-                    `;
-                }
-            }
-            
-            // Handle node clicks
-            network.on('click', function(params) {
-                if (params.nodes.length > 0) {
-                    const nodeId = params.nodes[0];
-                    const node = nodes.get(nodeId);
-                    
-                    if (node.complete) {
-                        fetch(`/strain_data/${encodeURIComponent(nodeId)}|${encodeURIComponent(node.rsp)}`)
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.success) {
-                                    displayStrainData(data.data, nodeId, node.rsp);
-                                }
-                            })
-                            .catch(error => console.error('Error:', error));
-                    } else {
-                        document.getElementById('strain-info').innerHTML = `
-                            <div class="strain-card">
-                                <h2>${nodeId}</h2>
-                                <p>RSP: ${node.rsp}</p>
-                                <button onclick="scrapeStrain('${node.rsp}')" class="strain-button">
-                                    Scrape Data
-                                </button>
-                            </div>
-                        `;
-                    }
-                }
-            });
-            
-            function displayStrainData(data, strain, rsp) {
-                const { summary, chemicals, metadata } = data;
-                document.getElementById('strain-info').innerHTML = `
-                    <div class="strain-card">
-                        <h2>${strain}</h2>
-                        <p><strong>RSP:</strong> ${rsp}</p>
-                        
-                        <div class="section">
-                            <h3>General Information</h3>
-                            ${Object.entries(metadata).map(([key, value]) => 
-                                `<p><strong>${key}:</strong> ${value}</p>`
-                            ).join('')}
-                        </div>
-                        
-                        <div class="section">
-                            <h3>Chemical Content</h3>
-                            ${chemicals.map(c => 
-                                `<p><strong>${c.Name}:</strong> ${c.Value}</p>`
-                            ).join('')}
-                        </div>
-                        
-                        <div class="section">
-                            <h3>Genetic Information</h3>
-                            <pre>${summary}</pre>
-                        </div>
-                    </div>
-                `;
-            }
-            
-            // Add search functionality
-            document.getElementById('search-input').addEventListener('input', function(e) {
-                const searchTerm = e.target.value.toLowerCase();
-                const allNodes = nodes.get();
-                allNodes.forEach(node => {
-                    const matches = node.label.toLowerCase().includes(searchTerm);
-                    nodes.update({
-                        id: node.id,
-                        opacity: matches ? 1 : 0.2
-                    });
-                });
-            });
-        </script>
-    </body>
-    </html>
-    """ % (json.dumps(nodes), json.dumps(edges))
+    # Read the HTML template
+    with open('visualization_template.html', 'r', encoding='utf-8') as f:
+        template = f.read()
     
-    return html_template
+    # Insert the data into the template
+    html_content = template.replace(
+        '{{NODES_DATA}}', json.dumps(nodes)
+    ).replace(
+        '{{RELATIONSHIPS_DATA}}', json.dumps(relationships)
+    )
+    
+    return html_content
 
 class ScraperHandler(SimpleHTTPRequestHandler):
     def get_strain_data(self, strain_name, rsp):
