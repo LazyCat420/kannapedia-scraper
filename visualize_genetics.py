@@ -169,32 +169,12 @@ def scrape_missing_strain(strain_info):
 
 def create_2d_visualization(strains_data, all_relationships):
     """Create interactive visualization using Vis.js"""
+    # Create nodes and edges for Vis.js
     nodes = []
     edges = []
     
-    # Sort strains by genetic distance to create hierarchical structure
-    strain_distances = {}
-    for strain1, strain2, distance in all_relationships:
-        if strain1 not in strain_distances:
-            strain_distances[strain1] = []
-        if strain2 not in strain_distances:
-            strain_distances[strain2] = []
-        strain_distances[strain1].append((strain2, distance))
-        strain_distances[strain2].append((strain1, distance))
-
-    # Add nodes with hierarchical level information
-    level_map = {}
-    current_level = 0
-    processed_strains = set()
-
+    # Add nodes
     for strain_name, data in strains_data.items():
-        # Calculate node level based on genetic relationships
-        if strain_name in strain_distances:
-            level = len(strain_distances[strain_name])
-            level_map[strain_name] = level
-        else:
-            level_map[strain_name] = 0
-
         nodes.append({
             'id': strain_name,
             'label': strain_name,
@@ -204,22 +184,17 @@ def create_2d_visualization(strains_data, all_relationships):
                 'border': '#2B7CE9' if data['complete'] else '#666666'
             },
             'rsp': data.get('rsp', ''),
-            'complete': data['complete'],
-            'level': level_map[strain_name]  # Add level information
+            'complete': data['complete']
         })
     
-    # Add edges with modified properties for tree visualization
+    # Add edges for close relationships
     for strain1, strain2, distance in all_relationships:
-        if distance < 0.15:  # Only show closer relationships
+        if distance < 0.2:  # Only show close relationships
             edges.append({
                 'from': strain1,
                 'to': strain2,
-                'value': 1 - distance,
-                'length': distance * 200,
-                'smooth': {
-                    'type': 'curvedCW',
-                    'roundness': 0.2
-                }
+                'value': 1 - distance,  # Convert distance to strength
+                'length': distance * 400  # Scale distance for visualization
             })
     
     # Create HTML template with Vis.js
