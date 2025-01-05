@@ -23,14 +23,54 @@
         }
         .section { margin: 15px 0; }
         pre { white-space: pre-wrap; font-size: 12px; }
+        .tab-button {
+            padding: 10px 20px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 14px;
+            border-bottom: 3px solid transparent;
+        }
+        
+        .tab-button.active {
+            border-bottom-color: #2B7CE9;
+            color: #2B7CE9;
+        }
+        
+        .view {
+            display: none;
+            width: 100%;
+            height: calc(100vh - 40px);
+        }
+        
+        .view.active {
+            display: flex;
+        }
+        
+        #fractal-container {
+            width: 100%;
+            height: 100%;
+            background: white;
+        }
     </style>
 </head>
 <body>
-    <div id="sidebar">
-        <input type="text" id="search-input" placeholder="Search strains...">
-        <div id="strain-info">Select a strain to view details</div>
+    <div id="tabs" style="display: flex; height: 40px; background: #f0f0f0;">
+        <button id="network-tab" class="tab-button active">Network View</button>
+        <button id="fractal-tab" class="tab-button">Fractal View</button>
     </div>
-    <div id="network-container"></div>
+    <div id="views" style="flex: 1; display: flex;">
+        <div id="network-view" class="view active">
+            <div id="sidebar">
+                <input type="text" id="search-input" placeholder="Search strains...">
+                <div id="strain-info">Select a strain to view details</div>
+            </div>
+            <div id="network-container"></div>
+        </div>
+        <div id="fractal-view" class="view" style="display: none;">
+            <div id="fractal-container"></div>
+        </div>
+    </div>
     
     <script type="text/javascript">
         // Initialize data
@@ -375,6 +415,189 @@
             }
         `;
         document.head.appendChild(style);
+
+        // Add tab switching functionality
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', () => {
+                // Remove active state from all tabs and views
+                document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.view').forEach(v => {
+                    v.style.display = 'none';
+                    v.classList.remove('active');
+                });
+                
+                // Activate selected tab and view
+                button.classList.add('active');
+                const viewId = button.id.replace('-tab', '-view');
+                const view = document.getElementById(viewId);
+                view.style.display = 'flex';
+                view.classList.add('active');
+                
+                // Render fractal view if selected
+                if (viewId === 'fractal-view') {
+                    console.log('Active nodes:', Array.from(activeNodes));
+                    renderFractalView();
+                }
+            });
+        });
+
+        // Update the renderFractalView function with better visualization settings
+        function renderFractalView() {
+            console.log('Rendering fractal view');
+            const fractalContainer = document.getElementById('fractal-container');
+            fractalContainer.innerHTML = '';
+            
+            if (activeNodes.size === 0) {
+                fractalContainer.innerHTML = '<div style="padding: 20px; text-align: center;">Please select nodes in the Network View first</div>';
+                return;
+            }
+
+            const fractalNodes = new vis.DataSet();
+            const fractalEdges = new vis.DataSet();
+            const processedNodes = new Set();
+
+            function addNodeToFractal(nodeId, x, y, level) {
+                if (level >= 3 || processedNodes.has(nodeId)) return;
+                
+                const node = nodes.get(nodeId);
+                if (!node) return;
+                
+                processedNodes.add(nodeId);
+                
+                // Add node to fractal visualization with improved styling
+                fractalNodes.add({
+                    id: `${nodeId}_${level}`,
+                    label: node.label || nodeId,
+                    x: x,
+                    y: y,
+                    level: level,
+                    color: {
+                        background: level === 0 ? '#ff9999' : '#97C2FC',
+                        border: level === 0 ? '#ff0000' : '#2B7CE9',
+                        highlight: {
+                            background: level === 0 ? '#ffcccc' : '#b3d1ff',
+                            border: level === 0 ? '#ff3333' : '#4d88ff'
+                        }
+                    },
+                    size: 40 - (level * 8), // Larger size difference between levels
+                    font: {
+                        size: 16 - (level * 2), // Text size decreases with level
+                        color: '#000000',
+                        strokeWidth: 2,
+                        strokeColor: '#ffffff'
+                    }
+                });
+
+                // Find and sort relationships
+                const relationships = allRelationships
+                    .filter(rel => (rel.from === nodeId || rel.to === nodeId))
+                    .sort((a, b) => a.distance - b.distance)
+                    .slice(0, 8);
+
+                const angleStep = (2 * Math.PI) / Math.max(relationships.length, 1);
+                relationships.forEach((rel, index) => {
+                    const childId = rel.from === nodeId ? rel.to : rel.from;
+                    if (!processedNodes.has(childId)) {
+                        const angle = index * angleStep;
+                        const radius = 250 / (level + 1); // Increased base radius
+                        const childX = x + radius * Math.cos(angle);
+                        const childY = y + radius * Math.sin(angle);
+                        
+                        addNodeToFractal(childId, childX, childY, level + 1);
+                        
+                        fractalEdges.add({
+                            from: `${nodeId}_${level}`,
+                            to: `${childId}_${level + 1}`,
+                            length: radius,
+                            width: 3 - (level * 0.5),
+                            color: { 
+                                color: '#2B7CE9',
+                                opacity: 0.8 - (level * 0.2) 
+                            },
+                            smooth: {
+                                type: 'continuous',
+                                roundness: 0.5
+                            },
+                            title: `Genetic Distance: ${rel.distance.toFixed(3)}`
+                        });
+                    }
+                });
+            }
+
+            // Initialize root nodes with larger spacing
+            Array.from(activeNodes).forEach((nodeId, index) => {
+                const angle = (index * 2 * Math.PI) / activeNodes.size;
+                const x = 400 * Math.cos(angle); // Increased radius for root nodes
+                const y = 400 * Math.sin(angle);
+                addNodeToFractal(nodeId, x, y, 0);
+            });
+
+            // Create the fractal network with improved options
+            const fractalNetwork = new vis.Network(fractalContainer, {
+                nodes: fractalNodes,
+                edges: fractalEdges
+            }, {
+                physics: {
+                    enabled: true,
+                    stabilization: {
+                        enabled: true,
+                        iterations: 200,
+                        updateInterval: 25
+                    },
+                    hierarchicalRepulsion: {
+                        nodeDistance: 200,
+                        springLength: 200,
+                        springConstant: 0.01,
+                        damping: 0.09
+                    }
+                },
+                interaction: {
+                    dragNodes: true,
+                    dragView: true,
+                    zoomView: true,
+                    hover: true,
+                    tooltipDelay: 200
+                },
+                layout: {
+                    improvedLayout: true
+                }
+            });
+
+            // Add controls to the fractal view
+            const fractalControls = document.createElement('div');
+            fractalControls.style.cssText = `
+                position: absolute;
+                bottom: 20px;
+                right: 20px;
+                display: flex;
+                gap: 10px;
+            `;
+
+            const fitButton = document.createElement('button');
+            fitButton.textContent = '⟲';
+            fitButton.onclick = () => fractalNetwork.fit({ animation: true });
+            fitButton.style.cssText = `
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                border: none;
+                background: white;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                cursor: pointer;
+                font-size: 18px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            `;
+
+            fractalControls.appendChild(fitButton);
+            fractalContainer.appendChild(fractalControls);
+
+            // Disable physics after initial layout
+            fractalNetwork.once('stabilizationIterationsDone', () => {
+                fractalNetwork.setOptions({ physics: { enabled: false } });
+            });
+        }
     </script>
 </body>
 </html> 
