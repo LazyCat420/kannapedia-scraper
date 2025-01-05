@@ -34,8 +34,15 @@
     
     <script type="text/javascript">
         // Initialize data
-        const nodes = new vis.DataSet({{NODES_DATA}});
-        const allRelationships = {{RELATIONSHIPS_DATA}};
+        let nodes, allRelationships;
+        try {
+            nodes = new vis.DataSet({{NODES_DATA}});
+            allRelationships = {{RELATIONSHIPS_DATA}};
+        } catch (e) {
+            console.error('Error initializing data:', e);
+            nodes = new vis.DataSet([]);
+            allRelationships = [];
+        }
         
         // Create network
         const container = document.getElementById('network-container');
@@ -127,7 +134,33 @@
         fitButton.textContent = '⟲';
         fitButton.onclick = () => network.fit({ animation: true });
         
-        [zoomIn, zoomOut, fitButton].forEach(button => {
+        const physicsButton = document.createElement('button');
+        physicsButton.textContent = '🔄';
+        physicsButton.title = 'Toggle Physics';
+        let physicsEnabled = false;
+        physicsButton.onclick = () => {
+            physicsEnabled = !physicsEnabled;
+            network.setOptions({ 
+                physics: { 
+                    enabled: physicsEnabled,
+                    stabilization: {
+                        enabled: true,
+                        iterations: 100,
+                        updateInterval: 25
+                    },
+                    repulsion: {
+                        nodeDistance: 200,
+                        centralGravity: 0.1,
+                        springLength: 300,
+                        springConstant: 0.05,
+                        damping: 0.09
+                    }
+                } 
+            });
+            physicsButton.style.backgroundColor = physicsEnabled ? '#e6f3ff' : 'white';
+        };
+        
+        [zoomIn, zoomOut, fitButton, physicsButton].forEach(button => {
             button.style.cssText = `
                 width: 40px;
                 height: 40px;
@@ -140,6 +173,7 @@
                 display: flex;
                 align-items: center;
                 justify-content: center;
+                transition: background-color 0.3s ease;
             `;
             controls.appendChild(button);
         });
