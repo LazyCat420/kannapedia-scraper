@@ -173,8 +173,33 @@ def create_2d_visualization(strains_data, all_relationships):
     nodes = []
     relationships = []
     
-    # Add nodes
+    # Track RSP numbers to avoid duplicates
+    seen_rsp = {}
+    
+    # First pass: Find completed nodes for each RSP
     for strain_name, data in strains_data.items():
+        rsp = data.get('rsp', '').upper()
+        if rsp:  # Only track nodes that have an RSP number
+            if rsp not in seen_rsp:
+                seen_rsp[rsp] = {
+                    'name': strain_name,
+                    'complete': data['complete']
+                }
+            elif data['complete'] and not seen_rsp[rsp]['complete']:
+                # Replace existing incomplete node with complete one
+                seen_rsp[rsp] = {
+                    'name': strain_name,
+                    'complete': True
+                }
+
+    # Second pass: Create nodes, skipping duplicates
+    for strain_name, data in strains_data.items():
+        rsp = data.get('rsp', '').upper()
+        
+        # Skip if this is a duplicate RSP and not the chosen representative
+        if rsp and seen_rsp[rsp]['name'] != strain_name:
+            continue
+            
         nodes.append({
             'id': strain_name,
             'label': strain_name,
@@ -187,11 +212,18 @@ def create_2d_visualization(strains_data, all_relationships):
             'complete': data['complete']
         })
     
-    # Convert relationships to format needed by frontend
+    # Update relationships to use the chosen strain names
     for strain1, strain2, distance in all_relationships:
+        # Get the representative strain names if they exist
+        rsp1 = strains_data.get(strain1, {}).get('rsp', '').upper()
+        rsp2 = strains_data.get(strain2, {}).get('rsp', '').upper()
+        
+        from_strain = seen_rsp.get(rsp1, {}).get('name', strain1) if rsp1 else strain1
+        to_strain = seen_rsp.get(rsp2, {}).get('name', strain2) if rsp2 else strain2
+        
         relationships.append({
-            'from': strain1,
-            'to': strain2,
+            'from': from_strain,
+            'to': to_strain,
             'distance': distance
         })
 
