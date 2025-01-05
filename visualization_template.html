@@ -183,6 +183,9 @@
         // Keep track of currently shown edges
         let currentEdges = new Set();
         
+        // Add this before the network click handler
+        const activeNodes = new Set();
+        
         // Add this function before the network click handler
         async function scrapeStrain(rsp) {
             if (!rsp) {
@@ -242,29 +245,51 @@
                 const nodeId = params.nodes[0];
                 const node = nodes.get(nodeId);
                 
-                // Clear previous edges
-                data.edges.clear();
-                currentEdges.clear();
-                
-                // Add edges for the clicked node
-                allRelationships.forEach(rel => {
-                    if (rel.from === nodeId || rel.to === nodeId) {
-                        if (rel.distance < 0.2) {  // Only show close relationships
-                            const edgeId = `${rel.from}-${rel.to}`;
-                            if (!currentEdges.has(edgeId)) {
-                                data.edges.add({
-                                    id: edgeId,
-                                    from: rel.from,
-                                    to: rel.to,
-                                    value: 1 - rel.distance,
-                                    length: rel.distance * 400
-                                });
-                                currentEdges.add(edgeId);
+                if (activeNodes.has(nodeId)) {
+                    // Remove this node's connections
+                    activeNodes.delete(nodeId);
+                    // Remove only edges connected to this node
+                    const edgesToRemove = [];
+                    data.edges.forEach(edge => {
+                        if (edge.from === nodeId || edge.to === nodeId) {
+                            edgesToRemove.push(edge.id);
+                            currentEdges.delete(edge.id);
+                        }
+                    });
+                    data.edges.remove(edgesToRemove);
+                } else {
+                    // Add this node's connections
+                    activeNodes.add(nodeId);
+                    // Add edges for the clicked node
+                    allRelationships.forEach(rel => {
+                        if (rel.from === nodeId || rel.to === nodeId) {
+                            if (rel.distance < 0.2) {  // Only show close relationships
+                                const edgeId = `${rel.from}-${rel.to}`;
+                                if (!currentEdges.has(edgeId)) {
+                                    data.edges.add({
+                                        id: edgeId,
+                                        from: rel.from,
+                                        to: rel.to,
+                                        value: 1 - rel.distance,
+                                        length: rel.distance * 400
+                                    });
+                                    currentEdges.add(edgeId);
+                                }
                             }
                         }
+                    });
+                }
+
+                // Update node appearance
+                nodes.update({
+                    id: nodeId,
+                    color: {
+                        background: activeNodes.has(nodeId) ? '#ff9999' : (node.complete ? '#2B7CE9' : '#97C2FC'),
+                        border: activeNodes.has(nodeId) ? '#ff0000' : (node.complete ? '#2B7CE9' : '#97C2FC')
                     }
                 });
 
+                // Handle node data display
                 if (node.complete) {
                     fetch(`/strain_data/${encodeURIComponent(nodeId)}|${encodeURIComponent(node.rsp)}`)
                         .then(response => response.json())
@@ -288,9 +313,22 @@
                     `;
                 }
             } else {
-                // Clear edges when clicking on empty space
+                // Clicking empty space clears all connections
+                activeNodes.clear();
                 data.edges.clear();
                 currentEdges.clear();
+                
+                // Reset all node colors
+                const allNodes = nodes.get();
+                allNodes.forEach(node => {
+                    nodes.update({
+                        id: node.id,
+                        color: {
+                            background: node.complete ? '#2B7CE9' : '#97C2FC',
+                            border: node.complete ? '#2B7CE9' : '#97C2FC'
+                        }
+                    });
+                });
             }
         });
         
