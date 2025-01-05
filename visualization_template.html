@@ -7,11 +7,55 @@
         body { margin: 0; padding: 0; display: flex; font-family: Arial, sans-serif; }
         #sidebar { 
             width: 400px; 
-            height: 100vh; 
-            overflow-y: auto; 
-            padding: 20px; 
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
             background: #f5f5f5;
             box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+        #view-tabs {
+            padding: 10px;
+            background: #f0f0f0;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            gap: 10px;
+        }
+        .tab-button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 14px;
+            border-radius: 4px;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+        .tab-button:hover {
+            background: rgba(43, 124, 233, 0.1);
+        }
+        .tab-button.active {
+            border-bottom-color: #2B7CE9;
+            color: #2B7CE9;
+            background: white;
+        }
+        #content-container {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        #search-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+        }
+        #main-content {
+            flex: 1;
+            height: 100vh;
+            position: relative;
         }
         #network-container { flex-grow: 1; height: 100vh; }
         .strain-card {
@@ -23,15 +67,6 @@
         }
         .section { margin: 15px 0; }
         pre { white-space: pre-wrap; font-size: 12px; }
-        .tab-button {
-            padding: 10px 20px;
-            border: none;
-            background: none;
-            cursor: pointer;
-            font-size: 14px;
-            border-bottom: 3px solid transparent;
-        }
-        
         .tab-button.active {
             border-bottom-color: #2B7CE9;
             color: #2B7CE9;
@@ -55,20 +90,24 @@
     </style>
 </head>
 <body>
-    <div id="tabs" style="display: flex; height: 40px; background: #f0f0f0;">
-        <button id="network-tab" class="tab-button active">Network View</button>
-        <button id="fractal-tab" class="tab-button">Fractal View</button>
-    </div>
     <div id="views" style="flex: 1; display: flex;">
-        <div id="network-view" class="view active">
-            <div id="sidebar">
+        <div id="sidebar">
+            <div id="view-tabs">
+                <button id="network-tab" class="tab-button active">Network View</button>
+                <button id="fractal-tab" class="tab-button">Phylogenetic Tree</button>
+            </div>
+            <div id="content-container">
                 <input type="text" id="search-input" placeholder="Search strains...">
                 <div id="strain-info">Select a strain to view details</div>
             </div>
-            <div id="network-container"></div>
         </div>
-        <div id="fractal-view" class="view" style="display: none;">
-            <div id="fractal-container"></div>
+        <div id="main-content">
+            <div id="network-view" class="view active">
+                <div id="network-container"></div>
+            </div>
+            <div id="fractal-view" class="view" style="display: none;">
+                <div id="fractal-container"></div>
+            </div>
         </div>
     </div>
     
@@ -441,9 +480,12 @@
             });
         });
 
-        // Update the renderFractalView function with better visualization settings
+        // Update the tab button text
+        document.getElementById('fractal-tab').textContent = 'Phylogenetic Tree';
+
+        // Update the renderFractalView function with phylogenetic tree layout
         function renderFractalView() {
-            console.log('Rendering fractal view');
+            console.log('Rendering phylogenetic tree');
             const fractalContainer = document.getElementById('fractal-container');
             fractalContainer.innerHTML = '';
             
@@ -455,19 +497,36 @@
             const fractalNodes = new vis.DataSet();
             const fractalEdges = new vis.DataSet();
             const processedNodes = new Set();
-
+            const processedEdges = new Set(); // Track processed edges
+            const levelWidth = 400;
+            const nodeSpacing = 80;
+            
             function addNodeToFractal(nodeId, x, y, level) {
                 if (level >= 3 || processedNodes.has(nodeId)) return;
                 
                 const node = nodes.get(nodeId);
-                if (!node) return;
+                if (!node) {
+                    console.warn(`Node not found for ID: ${nodeId}`);
+                    return;
+                }
+                
+                // Create a unique node ID for this level
+                const nodeIdWithLevel = `${nodeId}_${level}`;
+                if (fractalNodes.get(nodeIdWithLevel)) {
+                    console.warn(`Node already exists: ${nodeIdWithLevel}`);
+                    return;
+                }
                 
                 processedNodes.add(nodeId);
                 
-                // Add node to fractal visualization with improved styling
+                // Ensure we have a valid label and clean it up
+                const nodeLabel = (node.label || node.id || nodeId).replace(/_/g, ' ');
+                console.log(`Adding node: ${nodeLabel} at level ${level}`);
+                
+                // Update node styling with guaranteed label
                 fractalNodes.add({
-                    id: `${nodeId}_${level}`,
-                    label: node.label || nodeId,
+                    id: nodeIdWithLevel,
+                    label: nodeLabel,
                     x: x,
                     y: y,
                     level: level,
@@ -479,91 +538,175 @@
                             border: level === 0 ? '#ff3333' : '#4d88ff'
                         }
                     },
-                    size: 40 - (level * 8), // Larger size difference between levels
+                    size: 30 - (level * 5), // Slightly larger nodes
                     font: {
-                        size: 16 - (level * 2), // Text size decreases with level
+                        size: Math.max(12, 18 - (level * 2)), // Ensure minimum font size of 12
+                        face: 'arial',
                         color: '#000000',
                         strokeWidth: 2,
-                        strokeColor: '#ffffff'
-                    }
+                        strokeColor: '#ffffff',
+                        vadjust: -8 // Adjust label position
+                    },
+                    title: `${nodeLabel}<br>Level: ${level}<br>Genetic Distance: ${level === 0 ? '0.000' : 'See edge tooltip'}`
                 });
 
-                // Find and sort relationships
+                // Filter and sort relationships with distance threshold
                 const relationships = allRelationships
-                    .filter(rel => (rel.from === nodeId || rel.to === nodeId))
+                    .filter(rel => {
+                        const isConnected = (rel.from === nodeId || rel.to === nodeId);
+                        const hasValidNodes = nodes.get(rel.from) && nodes.get(rel.to);
+                        const withinDistance = rel.distance < 0.2; // Only show closer relationships
+                        return isConnected && hasValidNodes && withinDistance;
+                    })
                     .sort((a, b) => a.distance - b.distance)
-                    .slice(0, 8);
+                    .slice(0, 6);
 
-                const angleStep = (2 * Math.PI) / Math.max(relationships.length, 1);
+                console.log(`Found ${relationships.length} valid relationships for ${nodeLabel}`);
+
+                const totalHeight = (relationships.length - 1) * nodeSpacing;
+                const startY = y - totalHeight / 2;
+
                 relationships.forEach((rel, index) => {
                     const childId = rel.from === nodeId ? rel.to : rel.from;
                     if (!processedNodes.has(childId)) {
-                        const angle = index * angleStep;
-                        const radius = 250 / (level + 1); // Increased base radius
-                        const childX = x + radius * Math.cos(angle);
-                        const childY = y + radius * Math.sin(angle);
+                        const childNode = nodes.get(childId);
+                        if (!childNode) {
+                            console.warn(`Child node not found: ${childId}`);
+                            return;
+                        }
+
+                        const childY = startY + (index * nodeSpacing);
+                        const distanceMultiplier = Math.max(0.5, Math.min(2, rel.distance * 5));
+                        const childX = x + (levelWidth * distanceMultiplier);
                         
-                        addNodeToFractal(childId, childX, childY, level + 1);
+                        // Create unique elbow ID using all parameters
+                        const elbowId = `elbow_${nodeId}_${childId}_${level}_${index}`;
                         
-                        fractalEdges.add({
-                            from: `${nodeId}_${level}`,
-                            to: `${childId}_${level + 1}`,
-                            length: radius,
-                            width: 3 - (level * 0.5),
-                            color: { 
-                                color: '#2B7CE9',
-                                opacity: 0.8 - (level * 0.2) 
-                            },
-                            smooth: {
-                                type: 'continuous',
-                                roundness: 0.5
-                            },
-                            title: `Genetic Distance: ${rel.distance.toFixed(3)}`
-                        });
+                        // Check if this edge combination has been processed
+                        const edgeKey = [nodeId, childId].sort().join('_');
+                        if (!processedEdges.has(edgeKey)) {
+                            processedEdges.add(edgeKey);
+                            
+                            const elbowX = x + ((childX - x) * 0.5);
+                            
+                            // Add invisible elbow node with debugging info
+                            fractalNodes.add({
+                                id: elbowId,
+                                size: 0,
+                                color: { opacity: 0 },
+                                x: elbowX,
+                                y: childY,
+                                title: `Elbow node: ${nodeId} -> ${childId}`
+                            });
+
+                            // Add edges with more information
+                            fractalEdges.add({
+                                id: `edge1_${elbowId}`,
+                                from: `${nodeId}_${level}`,
+                                to: elbowId,
+                                width: 3 - (level * 0.5),
+                                color: { 
+                                    color: '#2B7CE9',
+                                    opacity: 0.9 - (level * 0.2)
+                                },
+                                smooth: false,
+                                title: `Genetic Distance: ${rel.distance.toFixed(3)}\nFrom: ${nodes.get(nodeId).label}\nTo: ${childNode.label}`
+                            });
+
+                            fractalEdges.add({
+                                id: `edge2_${elbowId}`,
+                                from: elbowId,
+                                to: `${childId}_${level + 1}`,
+                                width: 3 - (level * 0.5),
+                                color: { 
+                                    color: '#2B7CE9',
+                                    opacity: 0.9 - (level * 0.2)
+                                },
+                                smooth: false
+                            });
+
+                            addNodeToFractal(childId, childX, childY, level + 1);
+                        }
                     }
                 });
             }
 
-            // Initialize root nodes with larger spacing
-            Array.from(activeNodes).forEach((nodeId, index) => {
-                const angle = (index * 2 * Math.PI) / activeNodes.size;
-                const x = 400 * Math.cos(angle); // Increased radius for root nodes
-                const y = 400 * Math.sin(angle);
-                addNodeToFractal(nodeId, x, y, 0);
+            // Initialize root nodes
+            const rootNodes = Array.from(activeNodes);
+            const rootSpacing = 150;
+            const totalRootHeight = (rootNodes.length - 1) * rootSpacing;
+            const startY = -totalRootHeight / 2;
+
+            rootNodes.forEach((nodeId, index) => {
+                const y = startY + (index * rootSpacing);
+                addNodeToFractal(nodeId, -levelWidth, y, 0);
             });
 
-            // Create the fractal network with improved options
+            // Create the network with the same configuration as before
             const fractalNetwork = new vis.Network(fractalContainer, {
                 nodes: fractalNodes,
                 edges: fractalEdges
             }, {
-                physics: {
-                    enabled: true,
-                    stabilization: {
-                        enabled: true,
-                        iterations: 200,
-                        updateInterval: 25
-                    },
-                    hierarchicalRepulsion: {
-                        nodeDistance: 200,
-                        springLength: 200,
-                        springConstant: 0.01,
-                        damping: 0.09
+                physics: false,
+                layout: {
+                    hierarchical: {
+                        enabled: false
                     }
                 },
+                nodes: {
+                    shape: 'dot',
+                    scaling: {
+                        min: 20,
+                        max: 30
+                    },
+                    font: {
+                        size: 14,
+                        face: 'arial',
+                        strokeWidth: 2,
+                        strokeColor: '#ffffff'
+                    }
+                },
+                edges: {
+                    width: 2,
+                    selectionWidth: 3,
+                    smooth: false
+                },
                 interaction: {
-                    dragNodes: true,
+                    dragNodes: false,
                     dragView: true,
                     zoomView: true,
                     hover: true,
-                    tooltipDelay: 200
-                },
-                layout: {
-                    improvedLayout: true
+                    tooltipDelay: 200,
+                    multiselect: false
                 }
             });
 
-            // Add controls to the fractal view
+            // Add scale bar
+            const scaleBar = document.createElement('div');
+            scaleBar.style.cssText = `
+                position: absolute;
+                bottom: 40px;
+                left: 20px;
+                background: rgba(255, 255, 255, 0.9);
+                padding: 10px;
+                border-radius: 4px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                font-size: 12px;
+            `;
+            scaleBar.innerHTML = `
+                <div>Genetic Distance Scale:</div>
+                <div style="display: flex; align-items: center; margin-top: 5px;">
+                    <div style="border-top: 2px solid #2B7CE9; width: 50px;"></div>
+                    <div style="margin-left: 5px;">0.05</div>
+                </div>
+                <div style="display: flex; align-items: center; margin-top: 5px;">
+                    <div style="border-top: 2px solid #2B7CE9; width: 100px;"></div>
+                    <div style="margin-left: 5px;">0.10</div>
+                </div>
+            `;
+            fractalContainer.appendChild(scaleBar);
+
+            // Add controls
             const fractalControls = document.createElement('div');
             fractalControls.style.cssText = `
                 position: absolute;
@@ -575,6 +718,7 @@
 
             const fitButton = document.createElement('button');
             fitButton.textContent = '⟲';
+            fitButton.title = 'Fit to View';
             fitButton.onclick = () => fractalNetwork.fit({ animation: true });
             fitButton.style.cssText = `
                 width: 40px;
@@ -593,10 +737,8 @@
             fractalControls.appendChild(fitButton);
             fractalContainer.appendChild(fractalControls);
 
-            // Disable physics after initial layout
-            fractalNetwork.once('stabilizationIterationsDone', () => {
-                fractalNetwork.setOptions({ physics: { enabled: false } });
-            });
+            // Initial fit to view
+            setTimeout(() => fractalNetwork.fit(), 100);
         }
     </script>
 </body>
