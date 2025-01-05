@@ -312,23 +312,6 @@
                         </div>
                     `;
                 }
-            } else {
-                // Clicking empty space clears all connections
-                activeNodes.clear();
-                data.edges.clear();
-                currentEdges.clear();
-                
-                // Reset all node colors
-                const allNodes = nodes.get();
-                allNodes.forEach(node => {
-                    nodes.update({
-                        id: node.id,
-                        color: {
-                            background: node.complete ? '#2B7CE9' : '#97C2FC',
-                            border: node.complete ? '#2B7CE9' : '#97C2FC'
-                        }
-                    });
-                });
             }
         });
         
