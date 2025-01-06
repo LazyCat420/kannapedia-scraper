@@ -497,152 +497,74 @@
             const fractalNodes = new vis.DataSet();
             const fractalEdges = new vis.DataSet();
             const processedNodes = new Set();
-            const processedEdges = new Set(); // Track processed edges
-            const levelWidth = 400;
-            const nodeSpacing = 80;
+            const processedEdges = new Set();
             
-            function addNodeToFractal(nodeId, x, y, level) {
+            function addNodeToFractal(nodeId, level) {
                 if (level >= 3 || processedNodes.has(nodeId)) return;
                 
                 const node = nodes.get(nodeId);
-                if (!node) {
-                    console.warn(`Node not found for ID: ${nodeId}`);
-                    return;
-                }
-                
-                // Create a unique node ID for this level
-                const nodeIdWithLevel = `${nodeId}_${level}`;
-                if (fractalNodes.get(nodeIdWithLevel)) {
-                    console.warn(`Node already exists: ${nodeIdWithLevel}`);
-                    return;
-                }
+                if (!node) return;
                 
                 processedNodes.add(nodeId);
                 
-                // Ensure we have a valid label and clean it up
-                const nodeLabel = (node.label || node.id || nodeId).replace(/_/g, ' ');
-                console.log(`Adding node: ${nodeLabel} at level ${level}`);
-                
-                // Update node styling with guaranteed label
+                // Add node to tree
+                const nodeLabel = (node.label || node.id).replace(/_/g, ' ');
                 fractalNodes.add({
-                    id: nodeIdWithLevel,
+                    id: `${nodeId}_${level}`,
                     label: nodeLabel,
-                    x: x,
-                    y: y,
                     level: level,
                     color: {
                         background: level === 0 ? '#ff9999' : '#97C2FC',
-                        border: level === 0 ? '#ff0000' : '#2B7CE9',
-                        highlight: {
-                            background: level === 0 ? '#ffcccc' : '#b3d1ff',
-                            border: level === 0 ? '#ff3333' : '#4d88ff'
-                        }
+                        border: level === 0 ? '#ff0000' : '#2B7CE9'
                     },
-                    size: 30 - (level * 5), // Slightly larger nodes
+                    size: 20,
                     font: {
-                        size: Math.max(12, 18 - (level * 2)), // Ensure minimum font size of 12
+                        size: 14,
                         face: 'arial',
                         color: '#000000',
                         strokeWidth: 2,
-                        strokeColor: '#ffffff',
-                        vadjust: -8 // Adjust label position
-                    },
-                    title: `${nodeLabel}<br>Level: ${level}<br>Genetic Distance: ${level === 0 ? '0.000' : 'See edge tooltip'}`
+                        strokeColor: '#ffffff'
+                    }
                 });
-
-                // Filter and sort relationships with distance threshold
+                
+                // Find relationships
                 const relationships = allRelationships
                     .filter(rel => {
                         const isConnected = (rel.from === nodeId || rel.to === nodeId);
-                        const hasValidNodes = nodes.get(rel.from) && nodes.get(rel.to);
-                        const withinDistance = rel.distance < 0.2; // Only show closer relationships
-                        return isConnected && hasValidNodes && withinDistance;
+                        const withinDistance = rel.distance < 0.15; // Only show closer relationships
+                        return isConnected && withinDistance;
                     })
                     .sort((a, b) => a.distance - b.distance)
-                    .slice(0, 6);
-
-                console.log(`Found ${relationships.length} valid relationships for ${nodeLabel}`);
-
-                const totalHeight = (relationships.length - 1) * nodeSpacing;
-                const startY = y - totalHeight / 2;
-
-                relationships.forEach((rel, index) => {
+                    .slice(0, 3); // Limit connections
+                
+                relationships.forEach(rel => {
                     const childId = rel.from === nodeId ? rel.to : rel.from;
                     if (!processedNodes.has(childId)) {
-                        const childNode = nodes.get(childId);
-                        if (!childNode) {
-                            console.warn(`Child node not found: ${childId}`);
-                            return;
-                        }
-
-                        const childY = startY + (index * nodeSpacing);
-                        const distanceMultiplier = Math.max(0.5, Math.min(2, rel.distance * 5));
-                        const childX = x + (levelWidth * distanceMultiplier);
-                        
-                        // Create unique elbow ID using all parameters
-                        const elbowId = `elbow_${nodeId}_${childId}_${level}_${index}`;
-                        
-                        // Check if this edge combination has been processed
                         const edgeKey = [nodeId, childId].sort().join('_');
                         if (!processedEdges.has(edgeKey)) {
                             processedEdges.add(edgeKey);
                             
-                            const elbowX = x + ((childX - x) * 0.5);
-                            
-                            // Add invisible elbow node with debugging info
-                            fractalNodes.add({
-                                id: elbowId,
-                                size: 0,
-                                color: { opacity: 0 },
-                                x: elbowX,
-                                y: childY,
-                                title: `Elbow node: ${nodeId} -> ${childId}`
-                            });
-
-                            // Add edges with more information
                             fractalEdges.add({
-                                id: `edge1_${elbowId}`,
+                                id: `edge_${edgeKey}_${level}`,
                                 from: `${nodeId}_${level}`,
-                                to: elbowId,
-                                width: 3 - (level * 0.5),
-                                color: { 
-                                    color: '#2B7CE9',
-                                    opacity: 0.9 - (level * 0.2)
-                                },
-                                smooth: false,
-                                title: `Genetic Distance: ${rel.distance.toFixed(3)}\nFrom: ${nodes.get(nodeId).label}\nTo: ${childNode.label}`
-                            });
-
-                            fractalEdges.add({
-                                id: `edge2_${elbowId}`,
-                                from: elbowId,
                                 to: `${childId}_${level + 1}`,
-                                width: 3 - (level * 0.5),
-                                color: { 
-                                    color: '#2B7CE9',
-                                    opacity: 0.9 - (level * 0.2)
-                                },
-                                smooth: false
+                                width: 2,
+                                color: { color: '#2B7CE9', opacity: 0.6 },
+                                title: `Genetic Distance: ${rel.distance.toFixed(3)}`
                             });
-
-                            addNodeToFractal(childId, childX, childY, level + 1);
+                            
+                            addNodeToFractal(childId, level + 1);
                         }
                     }
                 });
             }
-
-            // Initialize root nodes
-            const rootNodes = Array.from(activeNodes);
-            const rootSpacing = 150;
-            const totalRootHeight = (rootNodes.length - 1) * rootSpacing;
-            const startY = -totalRootHeight / 2;
-
-            rootNodes.forEach((nodeId, index) => {
-                const y = startY + (index * rootSpacing);
-                addNodeToFractal(nodeId, -levelWidth, y, 0);
+            
+            // Start with selected nodes as roots
+            Array.from(activeNodes).forEach(nodeId => {
+                addNodeToFractal(nodeId, 0);
             });
-
-            // Create the network with the same configuration as before
+            
+            // Create the network with improved layout
             const fractalNetwork = new vis.Network(fractalContainer, {
                 nodes: fractalNodes,
                 edges: fractalEdges
@@ -650,7 +572,15 @@
                 physics: false,
                 layout: {
                     hierarchical: {
-                        enabled: false
+                        enabled: true,
+                        direction: 'LR',
+                        sortMethod: 'directed',
+                        levelSeparation: 120,    // Horizontal spacing between levels
+                        nodeSpacing: 120,        // Vertical spacing between nodes
+                        treeSpacing: 120,        // Spacing between subtrees
+                        blockShifting: false,
+                        edgeMinimization: true,
+                        parentCentralization: true
                     }
                 },
                 nodes: {
@@ -667,44 +597,18 @@
                     }
                 },
                 edges: {
-                    width: 2,
-                    selectionWidth: 3,
-                    smooth: false
+                    smooth: {
+                        type: 'straightCross',
+                        roundness: 0.2
+                    }
                 },
                 interaction: {
                     dragNodes: false,
                     dragView: true,
                     zoomView: true,
-                    hover: true,
-                    tooltipDelay: 200,
-                    multiselect: false
+                    hover: true
                 }
             });
-
-            // Add scale bar
-            const scaleBar = document.createElement('div');
-            scaleBar.style.cssText = `
-                position: absolute;
-                bottom: 40px;
-                left: 20px;
-                background: rgba(255, 255, 255, 0.9);
-                padding: 10px;
-                border-radius: 4px;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-                font-size: 12px;
-            `;
-            scaleBar.innerHTML = `
-                <div>Genetic Distance Scale:</div>
-                <div style="display: flex; align-items: center; margin-top: 5px;">
-                    <div style="border-top: 2px solid #2B7CE9; width: 50px;"></div>
-                    <div style="margin-left: 5px;">0.05</div>
-                </div>
-                <div style="display: flex; align-items: center; margin-top: 5px;">
-                    <div style="border-top: 2px solid #2B7CE9; width: 100px;"></div>
-                    <div style="margin-left: 5px;">0.10</div>
-                </div>
-            `;
-            fractalContainer.appendChild(scaleBar);
 
             // Add controls
             const fractalControls = document.createElement('div');
@@ -715,7 +619,7 @@
                 display: flex;
                 gap: 10px;
             `;
-
+            
             const fitButton = document.createElement('button');
             fitButton.textContent = '⟲';
             fitButton.title = 'Fit to View';
@@ -733,10 +637,10 @@
                 align-items: center;
                 justify-content: center;
             `;
-
+            
             fractalControls.appendChild(fitButton);
             fractalContainer.appendChild(fractalControls);
-
+            
             // Initial fit to view
             setTimeout(() => fractalNetwork.fit(), 100);
         }
