@@ -538,11 +538,13 @@
                 const relationships = allRelationships
                     .filter(rel => {
                         const isConnected = (rel.from === nodeId || rel.to === nodeId);
-                        const withinDistance = rel.distance < 0.15; // Only show closer relationships
-                        return isConnected && withinDistance;
+                        const withinDistance = rel.distance < 0.50; // Increased from 0.15 to 0.25
+                        const otherNode = rel.from === nodeId ? rel.to : rel.from;
+                        const hasValidNode = nodes.get(otherNode);
+                        return isConnected && withinDistance && hasValidNode;
                     })
                     .sort((a, b) => a.distance - b.distance)
-                    .slice(0, 3); // Limit connections
+                    .slice(0, 4); // Increased from 3 to 4 to show more connections
                 
                 relationships.forEach(rel => {
                     const childId = rel.from === nodeId ? rel.to : rel.from;
