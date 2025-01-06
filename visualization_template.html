@@ -3,6 +3,7 @@
 <head>
     <title>Cannabis Strain Network</title>
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <script type="text/javascript" src="full_phylogenetic_tree.js"></script>
     <style>
         body { margin: 0; padding: 0; display: flex; font-family: Arial, sans-serif; }
         #sidebar { 
@@ -95,6 +96,7 @@
             <div id="view-tabs">
                 <button id="network-tab" class="tab-button active">Network View</button>
                 <button id="fractal-tab" class="tab-button">Phylogenetic Tree</button>
+                <button id="full-tree-tab" class="tab-button">Full Phylogenetic Tree</button>
             </div>
             <div id="content-container">
                 <input type="text" id="search-input" placeholder="Search strains...">
@@ -107,6 +109,9 @@
             </div>
             <div id="fractal-view" class="view" style="display: none;">
                 <div id="fractal-container"></div>
+            </div>
+            <div id="full-tree-view" class="view" style="display: none;">
+                <div id="full-tree-container"></div>
             </div>
         </div>
     </div>
@@ -472,10 +477,12 @@
                 view.style.display = 'flex';
                 view.classList.add('active');
                 
-                // Render fractal view if selected
+                // Render appropriate view
                 if (viewId === 'fractal-view') {
-                    console.log('Active nodes:', Array.from(activeNodes));
                     renderFractalView();
+                } else if (viewId === 'full-tree-view') {
+                    const container = document.getElementById('full-tree-container');
+                    renderFullPhylogeneticTree(container, nodes, allRelationships);
                 }
             });
         });
