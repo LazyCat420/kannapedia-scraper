@@ -307,6 +307,27 @@
         // Add this before the network click handler
         const activeNodes = new Set();
         
+        // Add this helper function to find connections with adaptive threshold
+        function findConnections(nodeId, initialThreshold = 0.2) {
+            let threshold = initialThreshold;
+            let connections = [];
+            
+            // Keep increasing threshold until we find at least one connection or hit max threshold
+            while (threshold <= 1.0) {
+                connections = allRelationships.filter(rel => {
+                    return (rel.from === nodeId || rel.to === nodeId) && rel.distance <= threshold;
+                }).sort((a, b) => a.distance - b.distance);
+                
+                if (connections.length > 0) {
+                    console.log(`Found ${connections.length} connections at threshold ${threshold.toFixed(3)}`);
+                    break;
+                }
+                threshold += 0.1;
+            }
+            
+            return connections;
+        }
+        
         // Add this function before the network click handler
         async function scrapeStrain(rsp) {
             if (!rsp) {
@@ -328,21 +349,35 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    // Refresh the node data
-                    const updatedNode = nodes.get(data.strain_name);
-                    if (updatedNode) {
+                    // Find all nodes with this RSP number and update them
+                    const allNodes = nodes.get();
+                    const nodesToUpdate = allNodes.filter(node => node.rsp === rsp);
+                    
+                    nodesToUpdate.forEach(node => {
                         nodes.update({
-                            id: data.strain_name,
+                            id: node.id,
                             complete: true,
                             color: {
                                 background: '#2B7CE9',
                                 border: '#2B7CE9'
                             }
                         });
-                    }
+                        
+                        // If this node is in activeNodes, update the phylogenetic tree view
+                        if (activeNodes.has(node.id) && 
+                            document.getElementById('fractal-view').classList.contains('active')) {
+                            renderFractalView();
+                        }
+                    });
                     
                     // Display the scraped data
                     displayStrainData(data.strain_data, data.strain_name, rsp);
+                    
+                    // If we're in the full tree view, refresh it
+                    if (document.getElementById('full-tree-view').classList.contains('active')) {
+                        const container = document.getElementById('full-tree-container');
+                        renderFullPhylogeneticTree(container, nodes, allRelationships);
+                    }
                 } else {
                     throw new Error(data.error || 'Failed to scrape data');
                 }
@@ -366,8 +401,8 @@
                 const nodeId = params.nodes[0];
                 const node = nodes.get(nodeId);
                 
+                // Toggle node selection
                 if (activeNodes.has(nodeId)) {
-                    // Remove this node's connections
                     activeNodes.delete(nodeId);
                     // Remove only edges connected to this node
                     const edgesToRemove = [];
@@ -379,24 +414,27 @@
                     });
                     data.edges.remove(edgesToRemove);
                 } else {
-                    // Add this node's connections
                     activeNodes.add(nodeId);
+                    // Find connections with adaptive threshold
+                    const connections = findConnections(nodeId);
+                    
                     // Add edges for the clicked node
-                    allRelationships.forEach(rel => {
-                        if (rel.from === nodeId || rel.to === nodeId) {
-                            if (rel.distance < 0.2) {  // Only show close relationships
-                                const edgeId = `${rel.from}-${rel.to}`;
-                                if (!currentEdges.has(edgeId)) {
-                                    data.edges.add({
-                                        id: edgeId,
-                                        from: rel.from,
-                                        to: rel.to,
-                                        value: 1 - rel.distance,
-                                        length: rel.distance * 400
-                                    });
-                                    currentEdges.add(edgeId);
+                    connections.forEach(rel => {
+                        const edgeId = `${rel.from}-${rel.to}`;
+                        if (!currentEdges.has(edgeId)) {
+                            data.edges.add({
+                                id: edgeId,
+                                from: rel.from,
+                                to: rel.to,
+                                value: 1 - rel.distance,
+                                length: rel.distance * 400,
+                                title: `Genetic Distance: ${rel.distance.toFixed(3)}`,
+                                color: {
+                                    color: '#2B7CE9',
+                                    opacity: Math.max(0.2, 1 - rel.distance) // More distant connections are more transparent
                                 }
-                            }
+                            });
+                            currentEdges.add(edgeId);
                         }
                     });
                 }
