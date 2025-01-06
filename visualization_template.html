@@ -99,7 +99,44 @@
                 <button id="full-tree-tab" class="tab-button">Full Phylogenetic Tree</button>
             </div>
             <div id="content-container">
-                <input type="text" id="search-input" placeholder="Search strains...">
+                <div id="search-container" style="padding: 0 20px 20px 20px;">
+                    <div style="display: flex; gap: 10px;">
+                        <input 
+                            type="text" 
+                            id="search-input" 
+                            placeholder="Search strains..." 
+                            style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;"
+                        >
+                        <button 
+                            id="search-button"
+                            style="
+                                padding: 8px 16px;
+                                background: #2B7CE9;
+                                color: white;
+                                border: none;
+                                border-radius: 4px;
+                                cursor: pointer;
+                                font-size: 14px;
+                            "
+                        >
+                            Search
+                        </button>
+                        <button 
+                            id="reset-search"
+                            style="
+                                padding: 8px 16px;
+                                background: #f0f0f0;
+                                color: #333;
+                                border: 1px solid #ddd;
+                                border-radius: 4px;
+                                cursor: pointer;
+                                font-size: 14px;
+                            "
+                        >
+                            Reset
+                        </button>
+                    </div>
+                </div>
                 <div id="strain-info">Select a strain to view details</div>
             </div>
         </div>
@@ -428,18 +465,70 @@
             `;
         }
         
-        // Add search functionality
-        document.getElementById('search-input').addEventListener('input', function(e) {
-            const searchTerm = e.target.value.toLowerCase();
+        // Remove the old search event listener
+        document.getElementById('search-button').addEventListener('click', performSearch);
+        document.getElementById('reset-search').addEventListener('click', resetSearch);
+        document.getElementById('search-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
+
+        function performSearch() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            const allNodes = nodes.get();
+            
+            // Show loading cursor
+            document.body.style.cursor = 'wait';
+            
+            // Use setTimeout to prevent UI freeze
+            setTimeout(() => {
+                allNodes.forEach(node => {
+                    const matches = node.label.toLowerCase().includes(searchTerm);
+                    nodes.update({
+                        id: node.id,
+                        opacity: matches ? 1 : 0.2
+                    });
+                });
+                
+                // Reset cursor
+                document.body.style.cursor = 'default';
+                
+                // If in network view, fit to screen to show results
+                if (document.getElementById('network-view').classList.contains('active')) {
+                    network.fit({
+                        animation: {
+                            duration: 500,
+                            easingFunction: 'easeInOutQuad'
+                        }
+                    });
+                }
+            }, 0);
+        }
+
+        function resetSearch() {
+            // Clear search input
+            document.getElementById('search-input').value = '';
+            
+            // Reset all node opacities
             const allNodes = nodes.get();
             allNodes.forEach(node => {
-                const matches = node.label.toLowerCase().includes(searchTerm);
                 nodes.update({
                     id: node.id,
-                    opacity: matches ? 1 : 0.2
+                    opacity: 1
                 });
             });
-        });
+            
+            // If in network view, fit to screen
+            if (document.getElementById('network-view').classList.contains('active')) {
+                network.fit({
+                    animation: {
+                        duration: 500,
+                        easingFunction: 'easeInOutQuad'
+                    }
+                });
+            }
+        }
         
         // Add some CSS for the strain button
         const style = document.createElement('style');
