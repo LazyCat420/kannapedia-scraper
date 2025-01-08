@@ -88,6 +88,32 @@
             height: 100%;
             background: white;
         }
+        
+        /* Add relationship button styles */
+        .relationship-button {
+            flex: 1;
+            padding: 8px 16px;
+            border: 1px solid #2B7CE9;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            background: white;
+            color: #2B7CE9;
+            transition: all 0.3s ease;
+        }
+        
+        .relationship-button.active {
+            background: #2B7CE9;
+            color: white;
+        }
+        
+        .relationship-button:hover {
+            background: #e6f3ff;
+        }
+        
+        .relationship-button.active:hover {
+            background: #1f5aa7;
+        }
     </style>
 </head>
 <body>
@@ -137,6 +163,13 @@
                         </button>
                     </div>
                 </div>
+                <div id="relationship-type" style="padding: 0 20px 20px 20px;">
+                    <h3 style="margin: 0 0 10px 0;">Relationship Type</h3>
+                    <div style="display: flex; gap: 10px;">
+                        <button id="genetic-toggle" class="relationship-button active">Genetic</button>
+                        <button id="terpene-toggle" class="relationship-button">Terpene</button>
+                    </div>
+                </div>
                 <div id="strain-info">Select a strain to view details</div>
             </div>
         </div>
@@ -154,22 +187,23 @@
     </div>
     
     <script type="text/javascript">
-        // Initialize data
-        let nodes, allRelationships;
-        try {
-            nodes = new vis.DataSet({{NODES_DATA}});
-            allRelationships = {{RELATIONSHIPS_DATA}};
-        } catch (e) {
-            console.error('Error initializing data:', e);
-            nodes = new vis.DataSet([]);
-            allRelationships = [];
-        }
+        {{DATA_INITIALIZATION}}
+        
+        // Initialize data and network variables
+        const nodes = new vis.DataSet(window.INITIAL_DATA.nodes);
+        const allRelationships = window.INITIAL_DATA.relationships;
+        const allTerpeneRelationships = window.INITIAL_DATA.terpeneRelationships;
+        const networkState = {
+            currentEdges: new Set(),
+            activeNodes: new Set(),
+            currentRelationType: 'genetic'
+        };
         
         // Create network
         const container = document.getElementById('network-container');
         const data = {
             nodes: nodes,
-            edges: new vis.DataSet([])  // Start with empty edges
+            edges: new vis.DataSet([])
         };
         
         const options = {
@@ -225,7 +259,6 @@
             }
         };
         
-        // Initialize network
         const network = new vis.Network(container, data, options);
         
         // Disable physics after initial layout
@@ -301,207 +334,211 @@
         
         document.getElementById('network-container').appendChild(controls);
         
-        // Keep track of currently shown edges
-        let currentEdges = new Set();
-        
-        // Add this before the network click handler
-        const activeNodes = new Set();
-        
-        // Add this helper function to find connections with adaptive threshold
-        function findConnections(nodeId, initialThreshold = 0.2) {
-            let threshold = initialThreshold;
-            let connections = [];
-            
-            // Keep increasing threshold until we find at least one connection or hit max threshold
-            while (threshold <= 1.0) {
-                connections = allRelationships.filter(rel => {
-                    return (rel.from === nodeId || rel.to === nodeId) && rel.distance <= threshold;
-                }).sort((a, b) => a.distance - b.distance);
-                
-                if (connections.length > 0) {
-                    console.log(`Found ${connections.length} connections at threshold ${threshold.toFixed(3)}`);
-                    break;
-                }
-                threshold += 0.1;
+        // Add relationship type toggle handlers
+        document.getElementById('genetic-toggle').addEventListener('click', () => {
+            if (networkState.currentRelationType !== 'genetic') {
+                networkState.currentRelationType = 'genetic';
+                updateRelationshipToggle();
+                refreshConnections();
             }
-            
-            return connections;
+        });
+        
+        document.getElementById('terpene-toggle').addEventListener('click', () => {
+            if (networkState.currentRelationType !== 'terpene') {
+                networkState.currentRelationType = 'terpene';
+                updateRelationshipToggle();
+                refreshConnections();
+            }
+        });
+        
+        function updateRelationshipToggle() {
+            document.querySelectorAll('.relationship-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            document.getElementById(`${networkState.currentRelationType}-toggle`).classList.add('active');
         }
         
-        // Add this function before the network click handler
-        async function scrapeStrain(rsp) {
-            if (!rsp) {
-                console.error('No RSP number provided');
-                return;
-            }
+        function refreshConnections() {
+            // Clear all edges
+            data.edges.clear();
+            networkState.currentEdges.clear();
             
-            try {
-                // Show loading state
-                document.getElementById('strain-info').innerHTML = `
-                    <div class="strain-card">
-                        <h2>Scraping Data...</h2>
-                        <p>Please wait while we fetch the data for RSP: ${rsp}</p>
-                    </div>
-                `;
-                
-                // Call the scraping endpoint
-                const response = await fetch(`/scrape/${rsp}`);
-                const data = await response.json();
-                
-                if (data.success) {
-                    // Find all nodes with this RSP number and update them
-                    const allNodes = nodes.get();
-                    const nodesToUpdate = allNodes.filter(node => node.rsp === rsp);
+            // Refresh connections for all active nodes
+            networkState.activeNodes.forEach(nodeId => {
+                const connections = networkState.currentRelationType === 'genetic' 
+                    ? findConnections(nodeId)
+                    : findTerpeneConnections(nodeId);
                     
-                    nodesToUpdate.forEach(node => {
-                        nodes.update({
-                            id: node.id,
-                            complete: true,
+                connections.forEach(rel => {
+                    const edgeId = `${rel.from}-${rel.to}`;
+                    if (!networkState.currentEdges.has(edgeId)) {
+                        data.edges.add({
+                            id: edgeId,
+                            from: rel.from,
+                            to: rel.to,
+                            value: 1 - rel.distance,
+                            length: rel.distance * 400,
+                            title: `${networkState.currentRelationType === 'genetic' ? 'Genetic' : 'Terpene'} Distance: ${rel.distance.toFixed(3)}`,
                             color: {
-                                background: '#2B7CE9',
-                                border: '#2B7CE9'
+                                color: networkState.currentRelationType === 'genetic' ? '#2B7CE9' : '#4CAF50',
+                                opacity: Math.max(0.2, 1 - rel.distance)
                             }
                         });
-                        
-                        // If this node is in activeNodes, update the phylogenetic tree view
-                        if (activeNodes.has(node.id) && 
-                            document.getElementById('fractal-view').classList.contains('active')) {
-                            renderFractalView();
-                        }
-                    });
-                    
-                    // Display the scraped data
-                    displayStrainData(data.strain_data, data.strain_name, rsp);
-                    
-                    // If we're in the full tree view, refresh it
-                    if (document.getElementById('full-tree-view').classList.contains('active')) {
-                        const container = document.getElementById('full-tree-container');
-                        renderFullPhylogeneticTree(container, nodes, allRelationships);
+                        networkState.currentEdges.add(edgeId);
                     }
-                } else {
-                    throw new Error(data.error || 'Failed to scrape data');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                document.getElementById('strain-info').innerHTML = `
-                    <div class="strain-card">
-                        <h2>Error</h2>
-                        <p>Failed to scrape data: ${error.message}</p>
-                        <button onclick="scrapeStrain('${rsp}')" class="strain-button">
-                            Try Again
-                        </button>
-                    </div>
-                `;
-            }
+                });
+            });
         }
         
-        // Handle node clicks
+        // Update click handler to use network state
         network.on('click', function(params) {
             if (params.nodes.length > 0) {
                 const nodeId = params.nodes[0];
                 const node = nodes.get(nodeId);
                 
-                // Toggle node selection
-                if (activeNodes.has(nodeId)) {
-                    activeNodes.delete(nodeId);
-                    // Remove only edges connected to this node
+                if (networkState.activeNodes.has(nodeId)) {
+                    networkState.activeNodes.delete(nodeId);
                     const edgesToRemove = [];
                     data.edges.forEach(edge => {
                         if (edge.from === nodeId || edge.to === nodeId) {
                             edgesToRemove.push(edge.id);
-                            currentEdges.delete(edge.id);
+                            networkState.currentEdges.delete(edge.id);
                         }
                     });
                     data.edges.remove(edgesToRemove);
                 } else {
-                    activeNodes.add(nodeId);
-                    // Find connections with adaptive threshold
-                    const connections = findConnections(nodeId);
+                    networkState.activeNodes.add(nodeId);
+                    const connections = networkState.currentRelationType === 'genetic'
+                        ? findConnections(nodeId)
+                        : findTerpeneConnections(nodeId);
                     
-                    // Add edges for the clicked node
                     connections.forEach(rel => {
                         const edgeId = `${rel.from}-${rel.to}`;
-                        if (!currentEdges.has(edgeId)) {
+                        if (!networkState.currentEdges.has(edgeId)) {
                             data.edges.add({
                                 id: edgeId,
                                 from: rel.from,
                                 to: rel.to,
                                 value: 1 - rel.distance,
                                 length: rel.distance * 400,
-                                title: `Genetic Distance: ${rel.distance.toFixed(3)}`,
+                                title: `${networkState.currentRelationType === 'genetic' ? 'Genetic' : 'Terpene'} Distance: ${rel.distance.toFixed(3)}`,
                                 color: {
-                                    color: '#2B7CE9',
-                                    opacity: Math.max(0.2, 1 - rel.distance) // More distant connections are more transparent
+                                    color: networkState.currentRelationType === 'genetic' ? '#2B7CE9' : '#4CAF50',
+                                    opacity: Math.max(0.2, 1 - rel.distance)
                                 }
                             });
-                            currentEdges.add(edgeId);
+                            networkState.currentEdges.add(edgeId);
                         }
                     });
                 }
-
+                
                 // Update node appearance
                 nodes.update({
                     id: nodeId,
                     color: {
-                        background: activeNodes.has(nodeId) ? '#ff9999' : (node.complete ? '#2B7CE9' : '#97C2FC'),
-                        border: activeNodes.has(nodeId) ? '#ff0000' : (node.complete ? '#2B7CE9' : '#97C2FC')
+                        background: networkState.activeNodes.has(nodeId) ? '#ff9999' : (node.complete ? '#2B7CE9' : '#97C2FC'),
+                        border: networkState.activeNodes.has(nodeId) ? '#ff0000' : (node.complete ? '#2B7CE9' : '#97C2FC')
                     }
                 });
-
-                // Handle node data display
+                
+                // Handle strain data display
                 if (node.complete) {
                     fetch(`/strain_data/${encodeURIComponent(nodeId)}|${encodeURIComponent(node.rsp)}`)
                         .then(response => response.json())
                         .then(data => {
                             if (data.success) {
-                                displayStrainData(data.data, nodeId, node.rsp);
+                                const strainData = data.data;
+                                let chemicalContent = '';
+                                
+                                // Group chemicals by type
+                                const chemicals = {
+                                    cannabinoids: strainData.chemicals.filter(c => c.Type === 'Cannabinoid'),
+                                    terpenes: strainData.chemicals.filter(c => c.Type === 'Terpenoid')
+                                };
+                                
+                                // Build chemical content HTML
+                                if (chemicals.cannabinoids.length > 0) {
+                                    chemicalContent += '<h3>Cannabinoid Content</h3>';
+                                    chemicals.cannabinoids.forEach(chem => {
+                                        chemicalContent += `<div>${chem.Name}: ${chem.Value}</div>`;
+                                    });
+                                }
+                                
+                                if (chemicals.terpenes.length > 0) {
+                                    chemicalContent += '<h3>Terpene Content</h3>';
+                                    chemicals.terpenes.forEach(chem => {
+                                        chemicalContent += `<div>${chem.Name}: ${chem.Value}</div>`;
+                                    });
+                                }
+                                
+                                // Display strain info
+                                document.getElementById('strain-info').innerHTML = `
+                                    <div class="strain-card">
+                                        <h2>${nodeId}</h2>
+                                        <div class="section">
+                                            <h3>General Information</h3>
+                                            <div>RSP: ${node.rsp}</div>
+                                            ${Object.entries(strainData.metadata).map(([key, value]) => 
+                                                `<div>${key}: ${value}</div>`
+                                            ).join('')}
+                                        </div>
+                                        <div class="section">
+                                            <h3>Chemical Content</h3>
+                                            ${chemicalContent}
+                                        </div>
+                                        <div class="section">
+                                            <h3>Genetic Information</h3>
+                                            <pre>${strainData.summary}</pre>
+                                        </div>
+                                        ${networkState.currentRelationType === 'genetic' ? `
+                                            <div class="section">
+                                                <h3>Genetic Relationships</h3>
+                                                ${findConnections(nodeId).map(rel => 
+                                                    `<div>${rel.from === nodeId ? rel.to : rel.from} - Distance: ${rel.distance.toFixed(3)}</div>`
+                                                ).join('')}
+                                            </div>
+                                        ` : `
+                                            <div class="section">
+                                                <h3>Terpene Relationships</h3>
+                                                ${findTerpeneConnections(nodeId).map(rel => 
+                                                    `<div>${rel.from === nodeId ? rel.to : rel.from} - Distance: ${rel.distance.toFixed(3)}</div>`
+                                                ).join('')}
+                                            </div>
+                                        `}
+                                    </div>
+                                `;
+                            } else {
+                                document.getElementById('strain-info').innerHTML = `
+                                    <div class="strain-card">
+                                        <h2>Error</h2>
+                                        <p>Failed to load strain data</p>
+                                    </div>
+                                `;
                             }
                         })
-                        .catch(error => console.error('Error:', error));
+                        .catch(error => {
+                            console.error('Error:', error);
+                            document.getElementById('strain-info').innerHTML = `
+                                <div class="strain-card">
+                                    <h2>Error</h2>
+                                    <p>Failed to load strain data: ${error.message}</p>
+                                </div>
+                            `;
+                        });
                 } else {
+                    // Handle incomplete node
                     document.getElementById('strain-info').innerHTML = `
                         <div class="strain-card">
                             <h2>${nodeId}</h2>
                             <p>RSP: ${node.rsp}</p>
-                            ${node.rsp ? `
-                                <button onclick="scrapeStrain('${node.rsp}')" class="strain-button">
-                                    Scrape Data
-                                </button>
-                            ` : '<p>No RSP number available for this strain</p>'}
+                            <button onclick="scrapeStrain('${node.rsp}')" class="strain-button">
+                                Scrape Data
+                            </button>
                         </div>
                     `;
                 }
             }
         });
-        
-        function displayStrainData(data, strain, rsp) {
-            const { summary, chemicals, metadata } = data;
-            document.getElementById('strain-info').innerHTML = `
-                <div class="strain-card">
-                    <h2>${strain}</h2>
-                    <p><strong>RSP:</strong> ${rsp}</p>
-                    
-                    <div class="section">
-                        <h3>General Information</h3>
-                        ${Object.entries(metadata).map(([key, value]) => 
-                            `<p><strong>${key}:</strong> ${value}</p>`
-                        ).join('')}
-                    </div>
-                    
-                    <div class="section">
-                        <h3>Chemical Content</h3>
-                        ${chemicals.map(c => 
-                            `<p><strong>${c.Name}:</strong> ${c.Value}</p>`
-                        ).join('')}
-                    </div>
-                    
-                    <div class="section">
-                        <h3>Genetic Information</h3>
-                        <pre>${summary}</pre>
-                    </div>
-                </div>
-            `;
-        }
         
         // Remove the old search event listener
         document.getElementById('search-button').addEventListener('click', performSearch);
@@ -623,7 +660,7 @@
             const fractalContainer = document.getElementById('fractal-container');
             fractalContainer.innerHTML = '';
             
-            if (activeNodes.size === 0) {
+            if (networkState.activeNodes.size === 0) {
                 fractalContainer.innerHTML = '<div style="padding: 20px; text-align: center;">Please select nodes in the Network View first</div>';
                 return;
             }
@@ -696,7 +733,7 @@
             }
             
             // Start with selected nodes as roots
-            Array.from(activeNodes).forEach(nodeId => {
+            Array.from(networkState.activeNodes).forEach(nodeId => {
                 addNodeToFractal(nodeId, 0);
             });
             
@@ -779,6 +816,42 @@
             
             // Initial fit to view
             setTimeout(() => fractalNetwork.fit(), 100);
+        }
+
+        function findConnections(nodeId, initialThreshold = 0.2) {
+            let threshold = initialThreshold;
+            let connections = [];
+            
+            while (threshold <= 1.0) {
+                connections = allRelationships.filter(rel => {
+                    return (rel.from === nodeId || rel.to === nodeId) && rel.distance <= threshold;
+                }).sort((a, b) => a.distance - b.distance);
+                
+                if (connections.length > 0) {
+                    break;
+                }
+                threshold += 0.1;
+            }
+            
+            return connections;
+        }
+        
+        function findTerpeneConnections(nodeId, initialThreshold = 0.2) {
+            let threshold = initialThreshold;
+            let connections = [];
+            
+            while (threshold <= 1.0) {
+                connections = allTerpeneRelationships.filter(rel => {
+                    return (rel.from === nodeId || rel.to === nodeId) && rel.distance <= threshold;
+                }).sort((a, b) => a.distance - b.distance);
+                
+                if (connections.length > 0) {
+                    break;
+                }
+                threshold += 0.1;
+            }
+            
+            return connections;
         }
     </script>
 </body>

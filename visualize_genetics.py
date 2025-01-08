@@ -71,6 +71,25 @@ def load_strain_data(folder_path):
                                         'rsp': row.get('RSP', ''),
                                         'dir_name': ''
                                     }
+                
+                # Add terpene data if available
+                if os.path.exists(chemicals_file):
+                    with open(chemicals_file, 'r') as f:
+                        reader = csv.DictReader(f)
+                        terpenes = {}
+                        for row in reader:
+                            name = row.get('Name', '').lower()
+                            if ('terpene' in name or 
+                                any(t in name for t in ['myrcene', 'limonene', 'pinene', 'caryophyllene'])):
+                                # Strip percentage sign and convert to float
+                                value = row.get('Value', '0')
+                                value = value.strip().rstrip('%')  # Remove % sign and whitespace
+                                try:
+                                    terpenes[row['Name']] = float(value)
+                                except ValueError:
+                                    print(f"Warning: Could not convert value '{value}' to float for terpene {row['Name']}")
+                                    terpenes[row['Name']] = 0.0
+                        strains_data[strain_name]['terpenes'] = terpenes
     
     return strains_data, all_relationships
 
@@ -167,7 +186,7 @@ def scrape_missing_strain(strain_info):
             return False
     return False
 
-def create_2d_visualization(strains_data, all_relationships):
+def create_2d_visualization(strains_data, all_relationships, terpene_relationships):
     """Create interactive visualization using Vis.js"""
     # Create nodes and edges for Vis.js
     nodes = []
@@ -231,14 +250,69 @@ def create_2d_visualization(strains_data, all_relationships):
     with open('visualization_template.html', 'r', encoding='utf-8') as f:
         template = f.read()
     
+    # Convert data to JSON and properly escape it
+    nodes_json = json.dumps(nodes)
+    relationships_json = json.dumps(relationships)
+    terpene_relationships_json = json.dumps(terpene_relationships)
+    
+    # Create a data initialization script
+    data_script = f"""
+        window.INITIAL_DATA = {{
+            nodes: {nodes_json},
+            relationships: {relationships_json},
+            terpeneRelationships: {terpene_relationships_json}
+        }};
+    """
+    
     # Insert the data into the template
     html_content = template.replace(
-        '{{NODES_DATA}}', json.dumps(nodes)
-    ).replace(
-        '{{RELATIONSHIPS_DATA}}', json.dumps(relationships)
+        '{{DATA_INITIALIZATION}}',
+        data_script
     )
     
     return html_content
+
+def calculate_terpene_relationships(strains_data):
+    """Calculate similarity relationships between strains based on their terpene profiles"""
+    terpene_relationships = []
+    
+    # Get all strains with terpene data
+    strains_with_terpenes = {
+        name: data for name, data in strains_data.items() 
+        if data.get('terpenes') and data['complete']
+    }
+    
+    # Calculate cosine similarity between each pair of strains
+    for strain1, data1 in strains_with_terpenes.items():
+        terpenes1 = data1['terpenes']
+        for strain2, data2 in strains_with_terpenes.items():
+            if strain1 >= strain2:  # Skip duplicate pairs and self-comparisons
+                continue
+                
+            terpenes2 = data2['terpenes']
+            
+            # Get all unique terpenes
+            all_terpenes = set(terpenes1.keys()) | set(terpenes2.keys())
+            
+            # Calculate cosine similarity
+            dot_product = sum(terpenes1.get(t, 0) * terpenes2.get(t, 0) for t in all_terpenes)
+            norm1 = sum(v * v for v in terpenes1.values()) ** 0.5
+            norm2 = sum(v * v for v in terpenes2.values()) ** 0.5
+            
+            if norm1 and norm2:  # Avoid division by zero
+                similarity = dot_product / (norm1 * norm2)
+                # Convert similarity to distance (0 = identical, 1 = completely different)
+                distance = 1 - similarity
+                
+                # Only include relationships with meaningful similarity
+                if distance < 0.8:  # Adjust this threshold as needed
+                    terpene_relationships.append({
+                        'from': strain1,
+                        'to': strain2,
+                        'distance': distance
+                    })
+    
+    return terpene_relationships
 
 class ScraperHandler(SimpleHTTPRequestHandler):
     def get_strain_data(self, strain_name, rsp):
@@ -439,8 +513,12 @@ def main():
     print(f"Loaded data for {len(strains_data)} strains")
     print(f"Found {len(all_relationships)} total relationships")
     
+    print("\nCalculating terpene relationships...")
+    terpene_relationships = calculate_terpene_relationships(strains_data)
+    print(f"Found {len(terpene_relationships)} terpene relationships")
+    
     print("\nCreating visualization...")
-    html_content = create_2d_visualization(strains_data, all_relationships)
+    html_content = create_2d_visualization(strains_data, all_relationships, terpene_relationships)
     
     # Save the HTML file
     print("\nSaving HTML file...")
