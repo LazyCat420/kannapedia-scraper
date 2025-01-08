@@ -276,36 +276,84 @@ def calculate_terpene_relationships(strains_data):
     """Calculate similarity relationships between strains based on their terpene profiles"""
     terpene_relationships = []
     
-    # Get all strains with terpene data
-    strains_with_terpenes = {
-        name: data for name, data in strains_data.items() 
-        if data.get('terpenes') and data['complete']
+    # Define primary terpenes to focus on
+    PRIMARY_TERPENES = {
+        'myrcene': ['myrcene'],
+        'limonene': ['limonene', 'd-limonene'],
+        'caryophyllene': ['caryophyllene', 'β-caryophyllene', 'beta-caryophyllene'],
+        'pinene': ['α-pinene', 'beta-pinene', 'α-pinene', 'alpha-pinene'],
+        'terpinolene': ['terpinolene'],
+        'linalool': ['linalool'],
+        'humulene': ['humulene', 'α-humulene', 'alpha-humulene']
     }
     
-    # Calculate cosine similarity between each pair of strains
-    for strain1, data1 in strains_with_terpenes.items():
-        terpenes1 = data1['terpenes']
-        for strain2, data2 in strains_with_terpenes.items():
+    # Get all strains with terpene data
+    strains_with_terpenes = {}
+    for name, data in strains_data.items():
+        if not (data.get('terpenes') and data['complete']):
+            continue
+            
+        # Normalize terpene names and combine similar terpenes
+        normalized_terpenes = {}
+        for terpene_name, value in data['terpenes'].items():
+            terpene_name = terpene_name.lower()
+            # Convert percentage string to float if needed
+            if isinstance(value, str):
+                value = float(value.strip('%'))
+                
+            # Map to primary terpene groups
+            for primary, variants in PRIMARY_TERPENES.items():
+                if any(variant in terpene_name for variant in variants):
+                    if primary not in normalized_terpenes:
+                        normalized_terpenes[primary] = 0
+                    normalized_terpenes[primary] += value
+                    break
+        
+        # Only include strains with significant terpene content
+        if sum(normalized_terpenes.values()) > 0.1:  # At least 0.1% total terpenes
+            strains_with_terpenes[name] = normalized_terpenes
+    
+    # Calculate similarity between strains
+    for strain1, terpenes1 in strains_with_terpenes.items():
+        for strain2, terpenes2 in strains_with_terpenes.items():
             if strain1 >= strain2:  # Skip duplicate pairs and self-comparisons
                 continue
-                
-            terpenes2 = data2['terpenes']
             
-            # Get all unique terpenes
+            # Calculate similarity based on dominant terpenes
+            similarity_score = 0
+            total_weight = 0
+            
+            # Get all terpenes present in either strain
             all_terpenes = set(terpenes1.keys()) | set(terpenes2.keys())
             
-            # Calculate cosine similarity
-            dot_product = sum(terpenes1.get(t, 0) * terpenes2.get(t, 0) for t in all_terpenes)
-            norm1 = sum(v * v for v in terpenes1.values()) ** 0.5
-            norm2 = sum(v * v for v in terpenes2.values()) ** 0.5
+            for terpene in all_terpenes:
+                val1 = terpenes1.get(terpene, 0)
+                val2 = terpenes2.get(terpene, 0)
+                
+                # Skip if neither strain has significant amount of this terpene
+                if max(val1, val2) < 0.1:  # Less than 0.1% is considered trace amount
+                    continue
+                
+                # Calculate similarity for this terpene
+                diff = abs(val1 - val2)
+                max_val = max(val1, val2)
+                terpene_similarity = 1 - (diff / max(max_val, 0.1))  # Avoid division by zero
+                
+                # Weight the similarity by the maximum concentration
+                weight = max_val
+                similarity_score += terpene_similarity * weight
+                total_weight += weight
             
-            if norm1 and norm2:  # Avoid division by zero
-                similarity = dot_product / (norm1 * norm2)
-                # Convert similarity to distance (0 = identical, 1 = completely different)
-                distance = 1 - similarity
+            # Calculate final weighted similarity
+            if total_weight > 0:
+                final_similarity = similarity_score / total_weight
+                
+                # Convert to distance (0 = identical, 1 = completely different)
+                distance = 1 - final_similarity
                 
                 # Only include relationships with meaningful similarity
-                if distance < 0.8:  # Adjust this threshold as needed
+                # More strict threshold for terpene relationships
+                if distance < 0.5:  # Strains must be at least 50% similar in their significant terpenes
                     terpene_relationships.append({
                         'from': strain1,
                         'to': strain2,

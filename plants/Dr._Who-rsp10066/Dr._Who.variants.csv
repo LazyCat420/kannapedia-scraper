@@ -1,0 +1,121 @@
+Type,Distance,Strain,RSP
+all_samples,0.159,Purple Candy Cane,RSP10176
+all_samples,0.183,Critical Kush,RSP10473
+all_samples,0.184,Canna-tsu,RSP10391
+all_samples,0.188,Space Oddity,RSP10476
+all_samples,0.19,Cannatsu,RSP10158
+all_samples,0.195,Special K,RSP10223
+all_samples,0.203,Cactus,RSP10116
+all_samples,0.214,Pineapple Express,RSP10429
+all_samples,0.215,Critical Mass,RSP10167
+all_samples,0.217,Camelot Kush,RSP10249
+all_samples,0.217,Super Lemon Haze,RSP10139
+all_samples,0.22,Ghost OG,RSP10472
+all_samples,0.226,Sour Diesel X Cherry Pie,RSP10390
+all_samples,0.227,Fire Angel,RSP10298
+all_samples,0.229,Super Jack,RSP10586
+all_samples,0.231,Amnesia Haze,RSP10299
+all_samples,0.233,Purple Kush,RSP10095
+all_samples,0.236,Fire Angel,RSP10611
+all_samples,0.237,Dogwreck,RSP10179
+all_samples,0.238,Outer Space,RSP10591
+all_samples,0.186,Cannatsu,RSP10158
+all_samples,0.213,Critical Mass,RSP10167
+all_samples,0.217,Super Lemon Haze,RSP10139
+all_samples,0.227,Purple Kush,RSP10095
+all_samples,0.242,Cherry Limeade,RSP10169
+all_samples,0.243,Camelot Kush,RSP10249
+all_samples,0.247,HARLEQUIN CBD,RSP10076
+all_samples,0.251,Saint Jack,RSP10210
+all_samples,0.253,Girl Scout Cookies,RSP10246
+all_samples,0.257,Australian Bastard,RSP10216
+all_samples,0.264,Dutch Treat Haze,RSP10197
+all_samples,0.275,Maui Waui,RSP10251
+all_samples,0.282,WiFi,RSP10206
+all_samples,0.288,HARLEQUIN TSUNAMI,RSP10099
+all_samples,0.288,Durban Poison,RSP10150
+all_samples,0.289,Banana Kush,RSP10162
+all_samples,0.296,UNITY,RSP10081
+all_samples,0.296,AC DC,RSP10084
+all_samples,0.297,CANNATONIC,RSP10082
+all_samples,0.298,Triangle OG,RSP10157
+all_samples,0.525,White 99 S2,RSP10267
+all_samples,0.511,Carmagnola,RSP10863
+all_samples,0.499,Carmagnola,RSP10859
+all_samples,0.485,Congo,RSP10432
+all_samples,0.483,USO 31,RSP10866
+all_samples,0.473,Carmagnola,RSP10860
+all_samples,0.468,Carmagnola,RSP10862
+all_samples,0.46,Blue Dream S2,RSP10269
+all_samples,0.456,Santhica27,RSP10056
+all_samples,0.447,Lavender Diesel S2,RSP10268
+all_samples,0.441,Futura75,RSP10234
+all_samples,0.44,Carmagnola,RSP10861
+all_samples,0.435,Carmagnola,RSP10237
+all_samples,0.433,Carmagnola,RSP10858
+all_samples,0.432,Ivory,RSP10065
+all_samples,0.426,USO 31,RSP10864
+all_samples,0.425,AVAPM,RSP10589
+all_samples,0.422,USO 31,RSP10865
+all_samples,0.418,USO31 S3,RSP10048
+all_samples,0.414,Monoica,RSP10241
+base_tree,0.159,Purple Candy Cane,RSP10176
+base_tree,0.183,Critical Kush,RSP10473
+base_tree,0.184,Canna-tsu,RSP10391
+base_tree,0.188,Space Oddity,RSP10476
+base_tree,0.19,Cannatsu,RSP10158
+base_tree,0.195,Special K,RSP10223
+base_tree,0.203,Cactus,RSP10116
+base_tree,0.214,Pineapple Express,RSP10429
+base_tree,0.215,Critical Mass,RSP10167
+base_tree,0.217,Camelot Kush,RSP10249
+base_tree,0.217,Super Lemon Haze,RSP10139
+base_tree,0.22,Ghost OG,RSP10472
+base_tree,0.226,Sour Diesel X Cherry Pie,RSP10390
+base_tree,0.227,Fire Angel,RSP10298
+base_tree,0.229,Super Jack,RSP10586
+base_tree,0.231,Amnesia Haze,RSP10299
+base_tree,0.233,Purple Kush,RSP10095
+base_tree,0.236,Fire Angel,RSP10611
+base_tree,0.237,Dogwreck,RSP10179
+base_tree,0.238,Outer Space,RSP10591
+base_tree,0.186,Cannatsu,RSP10158
+base_tree,0.213,Critical Mass,RSP10167
+base_tree,0.217,Super Lemon Haze,RSP10139
+base_tree,0.227,Purple Kush,RSP10095
+base_tree,0.242,Cherry Limeade,RSP10169
+base_tree,0.243,Camelot Kush,RSP10249
+base_tree,0.247,HARLEQUIN CBD,RSP10076
+base_tree,0.251,Saint Jack,RSP10210
+base_tree,0.253,Girl Scout Cookies,RSP10246
+base_tree,0.257,Australian Bastard,RSP10216
+base_tree,0.264,Dutch Treat Haze,RSP10197
+base_tree,0.275,Maui Waui,RSP10251
+base_tree,0.282,WiFi,RSP10206
+base_tree,0.288,HARLEQUIN TSUNAMI,RSP10099
+base_tree,0.288,Durban Poison,RSP10150
+base_tree,0.289,Banana Kush,RSP10162
+base_tree,0.296,UNITY,RSP10081
+base_tree,0.296,AC DC,RSP10084
+base_tree,0.297,CANNATONIC,RSP10082
+base_tree,0.298,Triangle OG,RSP10157
+base_tree,0.525,White 99 S2,RSP10267
+base_tree,0.511,Carmagnola,RSP10863
+base_tree,0.499,Carmagnola,RSP10859
+base_tree,0.485,Congo,RSP10432
+base_tree,0.483,USO 31,RSP10866
+base_tree,0.473,Carmagnola,RSP10860
+base_tree,0.468,Carmagnola,RSP10862
+base_tree,0.46,Blue Dream S2,RSP10269
+base_tree,0.456,Santhica27,RSP10056
+base_tree,0.447,Lavender Diesel S2,RSP10268
+base_tree,0.441,Futura75,RSP10234
+base_tree,0.44,Carmagnola,RSP10861
+base_tree,0.435,Carmagnola,RSP10237
+base_tree,0.433,Carmagnola,RSP10858
+base_tree,0.432,Ivory,RSP10065
+base_tree,0.426,USO 31,RSP10864
+base_tree,0.425,AVAPM,RSP10589
+base_tree,0.422,USO 31,RSP10865
+base_tree,0.418,USO31 S3,RSP10048
+base_tree,0.414,Monoica,RSP10241

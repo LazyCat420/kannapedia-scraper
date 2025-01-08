@@ -853,6 +853,125 @@
             
             return connections;
         }
+
+        // Add this function before the network click handler
+        async function scrapeStrain(rsp) {
+            if (!rsp) {
+                console.error('No RSP number provided');
+                return;
+            }
+            
+            try {
+                // Show loading state
+                document.getElementById('strain-info').innerHTML = `
+                    <div class="strain-card">
+                        <h2>Scraping Data...</h2>
+                        <p>Please wait while we fetch the data for RSP: ${rsp}</p>
+                    </div>
+                `;
+                
+                // Call the scraping endpoint
+                const response = await fetch(`/scrape/${rsp}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Find all nodes with this RSP number and update them
+                    const allNodes = nodes.get();
+                    const nodesToUpdate = allNodes.filter(node => node.rsp === rsp);
+                    
+                    nodesToUpdate.forEach(node => {
+                        nodes.update({
+                            id: node.id,
+                            complete: true,
+                            color: {
+                                background: '#2B7CE9',
+                                border: '#2B7CE9'
+                            }
+                        });
+                        
+                        // If this node is in activeNodes, update the network view
+                        if (networkState.activeNodes.has(node.id)) {
+                            refreshConnections();
+                        }
+                    });
+                    
+                    // Display the scraped data
+                    const strainData = data.data;
+                    let chemicalContent = '';
+                    
+                    // Group chemicals by type
+                    const chemicals = {
+                        cannabinoids: strainData.chemicals.filter(c => c.Type === 'Cannabinoid'),
+                        terpenes: strainData.chemicals.filter(c => c.Type === 'Terpenoid')
+                    };
+                    
+                    // Build chemical content HTML
+                    if (chemicals.cannabinoids.length > 0) {
+                        chemicalContent += '<h3>Cannabinoid Content</h3>';
+                        chemicals.cannabinoids.forEach(chem => {
+                            chemicalContent += `<div>${chem.Name}: ${chem.Value}</div>`;
+                        });
+                    }
+                    
+                    if (chemicals.terpenes.length > 0) {
+                        chemicalContent += '<h3>Terpene Content</h3>';
+                        chemicals.terpenes.forEach(chem => {
+                            chemicalContent += `<div>${chem.Name}: ${chem.Value}</div>`;
+                        });
+                    }
+                    
+                    // Display strain info
+                    document.getElementById('strain-info').innerHTML = `
+                        <div class="strain-card">
+                            <h2>${data.strain_name}</h2>
+                            <div class="section">
+                                <h3>General Information</h3>
+                                <div>RSP: ${rsp}</div>
+                                ${Object.entries(strainData.metadata).map(([key, value]) => 
+                                    `<div>${key}: ${value}</div>`
+                                ).join('')}
+                            </div>
+                            <div class="section">
+                                <h3>Chemical Content</h3>
+                                ${chemicalContent}
+                            </div>
+                            <div class="section">
+                                <h3>Genetic Information</h3>
+                                <pre>${strainData.summary}</pre>
+                            </div>
+                            ${networkState.currentRelationType === 'genetic' ? `
+                                <div class="section">
+                                    <h3>Genetic Relationships</h3>
+                                    ${findConnections(data.strain_name).map(rel => 
+                                        `<div>${rel.from === data.strain_name ? rel.to : rel.from} - Distance: ${rel.distance.toFixed(3)}</div>`
+                                    ).join('')}
+                                </div>
+                            ` : `
+                                <div class="section">
+                                    <h3>Terpene Relationships</h3>
+                                    ${findTerpeneConnections(data.strain_name).map(rel => 
+                                        `<div>${rel.from === data.strain_name ? rel.to : rel.from} - Distance: ${rel.distance.toFixed(3)}</div>`
+                                    ).join('')}
+                                </div>
+                            `}
+                        </div>
+                    `;
+                } else {
+                    throw new Error(data.error || 'Failed to scrape data');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('strain-info').innerHTML = `
+                    <div class="strain-card">
+                        <h2>Error</h2>
+                        <p>Failed to scrape data: ${error.message}</p>
+                        <button onclick="scrapeStrain('${rsp}')" class="strain-button">
+                            Try Again
+                        </button>
+                    </div>
+                `;
+            }
+        }
     </script>
 </body>
 </html> 

@@ -1,0 +1,149 @@
+================================================================================
+Dr. Who (RSP10066) Summary
+================================================================================
+
+GENERAL INFORMATION
+--------------------------------------------------------------------------------
+Accession Date: January 20, 2016
+Reported Plant Sex: Female
+Report Type: StrainSEEK v1
+
+CHEMICAL CONTENT
+--------------------------------------------------------------------------------
+Cannabinoids:
+  THC + THCA: 18.1%
+  CBD + CBDA: 0.1%
+
+Terpenoids:
+
+GENETIC RELATIONSHIPS
+--------------------------------------------------------------------------------
+Nearest Genetic Relatives (All Samples):
+  0.159 - Purple Candy Cane (RSP10176)(rsp10176)
+  0.183 - Critical Kush (RSP10473)(rsp10473)
+  0.184 - Canna-tsu (RSP10391)(rsp10391)
+  0.188 - Space Oddity (RSP10476)(rsp10476)
+  0.190 - Cannatsu (RSP10158)(rsp10158)
+  0.195 - Special K (RSP10223)(rsp10223)
+  0.203 - Cactus (RSP10116)(rsp10116)
+  0.214 - Pineapple Express (RSP10429)(rsp10429)
+  0.215 - Critical Mass (RSP10167)(rsp10167)
+  0.217 - Camelot Kush (RSP10249)(rsp10249)
+  0.217 - Super Lemon Haze (RSP10139)(rsp10139)
+  0.220 - Ghost OG (RSP10472)(rsp10472)
+  0.226 - Sour Diesel X Cherry Pie (RSP10390)(rsp10390)
+  0.227 - Fire Angel (RSP10298)(rsp10298)
+  0.229 - Super Jack (RSP10586)(rsp10586)
+  0.231 - Amnesia Haze (RSP10299)(rsp10299)
+  0.233 - Purple Kush (RSP10095)(rsp10095)
+  0.236 - Fire Angel (RSP10611)(rsp10611)
+  0.237 - Dogwreck (RSP10179)(rsp10179)
+  0.238 - Outer Space (RSP10591)(rsp10591)
+  0.186 - Cannatsu (RSP10158)(rsp10158)
+  0.213 - Critical Mass (RSP10167)(rsp10167)
+  0.217 - Super Lemon Haze (RSP10139)(rsp10139)
+  0.227 - Purple Kush (RSP10095)(rsp10095)
+  0.242 - Cherry Limeade (RSP10169)(rsp10169)
+  0.243 - Camelot Kush (RSP10249)(rsp10249)
+  0.247 - HARLEQUIN CBD (RSP10076)(rsp10076)
+  0.251 - Saint Jack (RSP10210)(rsp10210)
+  0.253 - Girl Scout Cookies (RSP10246)(rsp10246)
+  0.257 - Australian Bastard (RSP10216)(rsp10216)
+  0.264 - Dutch Treat Haze (RSP10197)(rsp10197)
+  0.275 - Maui Waui (RSP10251)(rsp10251)
+  0.282 - WiFi (RSP10206)(rsp10206)
+  0.288 - HARLEQUIN TSUNAMI (RSP10099)(rsp10099)
+  0.288 - Durban Poison (RSP10150)(rsp10150)
+  0.289 - Banana Kush (RSP10162)(rsp10162)
+  0.296 - UNITY (RSP10081)(rsp10081)
+  0.296 - AC DC (RSP10084)(rsp10084)
+  0.297 - CANNATONIC (RSP10082)(rsp10082)
+  0.298 - Triangle OG (RSP10157)(rsp10157)
+  0.525 - White 99 S2 (RSP10267)(rsp10267)
+  0.511 - Carmagnola (RSP10863)(rsp10863)
+  0.499 - Carmagnola (RSP10859)(rsp10859)
+  0.485 - Congo (RSP10432)(rsp10432)
+  0.483 - USO 31 (RSP10866)(rsp10866)
+  0.473 - Carmagnola (RSP10860)(rsp10860)
+  0.468 - Carmagnola (RSP10862)(rsp10862)
+  0.460 - Blue Dream S2 (RSP10269)(rsp10269)
+  0.456 - Santhica27 (RSP10056)(rsp10056)
+  0.447 - Lavender Diesel S2 (RSP10268)(rsp10268)
+  0.441 - Futura75 (RSP10234)(rsp10234)
+  0.440 - Carmagnola (RSP10861)(rsp10861)
+  0.435 - Carmagnola (RSP10237)(rsp10237)
+  0.433 - Carmagnola (RSP10858)(rsp10858)
+  0.432 - Ivory (RSP10065)(rsp10065)
+  0.426 - USO 31 (RSP10864)(rsp10864)
+  0.425 - AVAPM (RSP10589)(rsp10589)
+  0.422 - USO 31 (RSP10865)(rsp10865)
+  0.418 - USO31 S3 (RSP10048)(rsp10048)
+  0.414 - Monoica (RSP10241)(rsp10241)
+
+Nearest Genetic Relatives (Base Tree):
+  0.159 - Purple Candy Cane (RSP10176)(rsp10176)
+  0.183 - Critical Kush (RSP10473)(rsp10473)
+  0.184 - Canna-tsu (RSP10391)(rsp10391)
+  0.188 - Space Oddity (RSP10476)(rsp10476)
+  0.190 - Cannatsu (RSP10158)(rsp10158)
+  0.195 - Special K (RSP10223)(rsp10223)
+  0.203 - Cactus (RSP10116)(rsp10116)
+  0.214 - Pineapple Express (RSP10429)(rsp10429)
+  0.215 - Critical Mass (RSP10167)(rsp10167)
+  0.217 - Camelot Kush (RSP10249)(rsp10249)
+  0.217 - Super Lemon Haze (RSP10139)(rsp10139)
+  0.220 - Ghost OG (RSP10472)(rsp10472)
+  0.226 - Sour Diesel X Cherry Pie (RSP10390)(rsp10390)
+  0.227 - Fire Angel (RSP10298)(rsp10298)
+  0.229 - Super Jack (RSP10586)(rsp10586)
+  0.231 - Amnesia Haze (RSP10299)(rsp10299)
+  0.233 - Purple Kush (RSP10095)(rsp10095)
+  0.236 - Fire Angel (RSP10611)(rsp10611)
+  0.237 - Dogwreck (RSP10179)(rsp10179)
+  0.238 - Outer Space (RSP10591)(rsp10591)
+  0.186 - Cannatsu (RSP10158)(rsp10158)
+  0.213 - Critical Mass (RSP10167)(rsp10167)
+  0.217 - Super Lemon Haze (RSP10139)(rsp10139)
+  0.227 - Purple Kush (RSP10095)(rsp10095)
+  0.242 - Cherry Limeade (RSP10169)(rsp10169)
+  0.243 - Camelot Kush (RSP10249)(rsp10249)
+  0.247 - HARLEQUIN CBD (RSP10076)(rsp10076)
+  0.251 - Saint Jack (RSP10210)(rsp10210)
+  0.253 - Girl Scout Cookies (RSP10246)(rsp10246)
+  0.257 - Australian Bastard (RSP10216)(rsp10216)
+  0.264 - Dutch Treat Haze (RSP10197)(rsp10197)
+  0.275 - Maui Waui (RSP10251)(rsp10251)
+  0.282 - WiFi (RSP10206)(rsp10206)
+  0.288 - HARLEQUIN TSUNAMI (RSP10099)(rsp10099)
+  0.288 - Durban Poison (RSP10150)(rsp10150)
+  0.289 - Banana Kush (RSP10162)(rsp10162)
+  0.296 - UNITY (RSP10081)(rsp10081)
+  0.296 - AC DC (RSP10084)(rsp10084)
+  0.297 - CANNATONIC (RSP10082)(rsp10082)
+  0.298 - Triangle OG (RSP10157)(rsp10157)
+  0.525 - White 99 S2 (RSP10267)(rsp10267)
+  0.511 - Carmagnola (RSP10863)(rsp10863)
+  0.499 - Carmagnola (RSP10859)(rsp10859)
+  0.485 - Congo (RSP10432)(rsp10432)
+  0.483 - USO 31 (RSP10866)(rsp10866)
+  0.473 - Carmagnola (RSP10860)(rsp10860)
+  0.468 - Carmagnola (RSP10862)(rsp10862)
+  0.460 - Blue Dream S2 (RSP10269)(rsp10269)
+  0.456 - Santhica27 (RSP10056)(rsp10056)
+  0.447 - Lavender Diesel S2 (RSP10268)(rsp10268)
+  0.441 - Futura75 (RSP10234)(rsp10234)
+  0.440 - Carmagnola (RSP10861)(rsp10861)
+  0.435 - Carmagnola (RSP10237)(rsp10237)
+  0.433 - Carmagnola (RSP10858)(rsp10858)
+  0.432 - Ivory (RSP10065)(rsp10065)
+  0.426 - USO 31 (RSP10864)(rsp10864)
+  0.425 - AVAPM (RSP10589)(rsp10589)
+  0.422 - USO 31 (RSP10865)(rsp10865)
+  0.418 - USO31 S3 (RSP10048)(rsp10048)
+  0.414 - Monoica (RSP10241)(rsp10241)
+
+
+BLOCKCHAIN INFORMATION
+--------------------------------------------------------------------------------
+Transaction ID: d89f962a30e6f2d043306ab2f401ad73a6aeb82e1c90d26fd36d591457886b5e
+SHASUM Hash: 0322e3b539ed94e98041c2e20a17fd01099d21fc112ef5bc500c985e664a58cc
