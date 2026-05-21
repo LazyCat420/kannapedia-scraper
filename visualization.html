@@ -546,7 +546,12 @@
             }
         });
         
-        // Remove the old search event listener
+        // Add debounced search event listener
+        let searchTimeout;
+        document.getElementById('search-input').addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(performSearch, 200);
+        });
         document.getElementById('search-button').addEventListener('click', performSearch);
         document.getElementById('reset-search').addEventListener('click', resetSearch);
         document.getElementById('search-input').addEventListener('keypress', function(e) {
@@ -556,35 +561,34 @@
         });
 
         function performSearch() {
-            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            const searchTerm = document.getElementById('search-input').value.toLowerCase().trim();
             const allNodes = nodes.get();
+            const updates = [];
             
-            // Show loading cursor
-            document.body.style.cursor = 'wait';
-            
-            // Use setTimeout to prevent UI freeze
-            setTimeout(() => {
-                allNodes.forEach(node => {
-                    const matches = node.label.toLowerCase().includes(searchTerm);
-                    nodes.update({
+            allNodes.forEach(node => {
+                const currentOpacity = node.opacity !== undefined ? node.opacity : 1;
+                const targetOpacity = !searchTerm ? 1 : (node.label.toLowerCase().includes(searchTerm) ? 1 : 0.2);
+                if (currentOpacity !== targetOpacity) {
+                    updates.push({
                         id: node.id,
-                        opacity: matches ? 1 : 0.2
-                    });
-                });
-                
-                // Reset cursor
-                document.body.style.cursor = 'default';
-                
-                // If in network view, fit to screen to show results
-                if (document.getElementById('network-view').classList.contains('active')) {
-                    network.fit({
-                        animation: {
-                            duration: 500,
-                            easingFunction: 'easeInOutQuad'
-                        }
+                        opacity: targetOpacity
                     });
                 }
-            }, 0);
+            });
+            
+            if (updates.length > 0) {
+                nodes.update(updates);
+            }
+            
+            // If in network view, fit to screen to show results
+            if (document.getElementById('network-view').classList.contains('active')) {
+                network.fit({
+                    animation: {
+                        duration: 500,
+                        easingFunction: 'easeInOutQuad'
+                    }
+                });
+            }
         }
 
         function resetSearch() {
@@ -593,12 +597,20 @@
             
             // Reset all node opacities
             const allNodes = nodes.get();
+            const updates = [];
             allNodes.forEach(node => {
-                nodes.update({
-                    id: node.id,
-                    opacity: 1
-                });
+                const currentOpacity = node.opacity !== undefined ? node.opacity : 1;
+                if (currentOpacity !== 1) {
+                    updates.push({
+                        id: node.id,
+                        opacity: 1
+                    });
+                }
             });
+            
+            if (updates.length > 0) {
+                nodes.update(updates);
+            }
             
             // If in network view, fit to screen
             if (document.getElementById('network-view').classList.contains('active')) {
